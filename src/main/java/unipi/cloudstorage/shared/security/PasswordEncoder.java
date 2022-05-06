@@ -1,4 +1,4 @@
-package unipi.cloudstorage.security;
+package unipi.cloudstorage.shared.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

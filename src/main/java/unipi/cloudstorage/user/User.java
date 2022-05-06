@@ -7,6 +7,7 @@ import lombok.Setter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import unipi.cloudstorage.countryCodes.CountryCode;
 
 import javax.persistence.*;
 import java.util.Collection;
@@ -19,13 +20,8 @@ import java.util.Collections;
 @Entity
 public class User implements UserDetails {
     @Id
-    @SequenceGenerator(
-        name= "user_id_sequence",
-        sequenceName = "user_id_sequence",
-        allocationSize = 1
-    )
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "user_id_sequence")
-    private Integer id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
     private String email;
     private String password;
     private String phoneNumber;
@@ -34,6 +30,9 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private UserRole role;
     private boolean isPhoneValidated;
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "country_code_id", referencedColumnName = "id")
+    private CountryCode countryCode;
 
     public User(String email, String password, String phoneNumber, String firstName, String lastName, UserRole role, boolean isPhoneValidated) {
         this.email = email;
@@ -88,5 +87,19 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() {
         return true;
+    }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", email='" + email + '\'' +
+                ", password='" + password + '\'' +
+                ", phoneNumber='" + phoneNumber + '\'' +
+                ", firstName='" + firstName + '\'' +
+                ", lastName='" + lastName + '\'' +
+                ", role=" + role +
+                ", isPhoneValidated=" + isPhoneValidated +
+                '}';
     }
 }

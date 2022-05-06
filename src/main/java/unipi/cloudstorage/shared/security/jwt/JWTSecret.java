@@ -1,6 +1,5 @@
-package unipi.cloudstorage.security.jwt;
+package unipi.cloudstorage.shared.security.jwt;
 
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
