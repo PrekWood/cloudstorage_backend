@@ -42,7 +42,10 @@ public class UserFileController extends ResponseHandler {
 
     @CrossOrigin
     @PostMapping("file" )
-    public ResponseEntity<?> uploadFile(@RequestParam MultipartFile file, @RequestParam Long folderId) {
+    public ResponseEntity<?> uploadFile(
+            @RequestParam MultipartFile file,
+            @RequestParam(required = false) Long folderId
+    ) {
 
         // Get user from token
         User loggedInUser = userService.loadUserFromJwt();
@@ -219,58 +222,6 @@ public class UserFileController extends ResponseHandler {
         HashMap<String, Object> responseBody = new HashMap<>();
         responseBody.put("digitalSignature", digitalSignatureHex);
         responseBody.put("file", fileBytes);
-        return createSuccessResponse(responseBody);
-    }
-
-
-    @CrossOrigin
-    @PostMapping("file/{idFile}/validate-signature" )
-    public ResponseEntity<?> validateDigitalSignature(@PathVariable Long idFile, @RequestBody DigitalSignatureValidationRequest request) {
-
-        // Get user from token
-        User loggedInUser = userService.loadUserFromJwt();
-        if (loggedInUser == null) {
-            return createErrorResponse(HttpStatus.FORBIDDEN, "You are not loged in" );
-        }
-
-        // Search file by id
-        UserFile file = null;
-        try {
-            file = userFileService.getFileById(idFile);
-            if (file == null) {
-                throw new UserFileNotFound();
-            }
-        } catch (UserFileNotFound e) {
-            return createErrorResponse("File not found" );
-        }
-
-        // Block if this file doesn't belong to the user
-        if (!file.getUser().getId().equals(loggedInUser.getId())) {
-            return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to this file" );
-        }
-
-        String fileBytesString = request.getFile();
-        String digitalSignature = request.getDigitalSignature();
-        if (Validate.isEmpty(fileBytesString) || Validate.isEmpty(digitalSignature)) {
-            return createErrorResponse("Please fill in all fields" );
-        }
-
-        // Decode hex to bytes
-        byte[] digitalSignatureBytes = fileEncoder.hexStringToByteArray(digitalSignature);
-        byte[] fileBytes = fileEncoder.hexStringToByteArray(fileBytesString);
-
-        // Singature length validation
-        if (digitalSignatureBytes.length != 256) {
-            return createErrorResponse("Invalid digital signature" );
-        }
-
-        // Generate digital signature
-        if (!fileEncoder.validateDigitalSignature(fileBytes, digitalSignatureBytes)) {
-            return createErrorResponse("Invalid digital signature" );
-        }
-
-        HashMap<String, Object> responseBody = new HashMap<>();
-        responseBody.put("fileBytes", fileBytes);
         return createSuccessResponse(responseBody);
     }
 

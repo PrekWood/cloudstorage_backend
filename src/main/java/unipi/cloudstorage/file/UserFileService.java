@@ -159,12 +159,12 @@ public class UserFileService {
             Long folderId
     ) {
         return userFileRepository.findAllByUserIdAndFolderId(
-                idUser,
-                folderId,
-                Sort.by(
-                        DESC,
-                        "dateAdd"
-                )
+            idUser,
+            folderId,
+            Sort.by(
+                    DESC,
+                    "dateAdd"
+            )
         );
     }
 
@@ -216,8 +216,8 @@ public class UserFileService {
                 favorite,
                 searchQuery,
                 Sort.by(
-                        orderWay.equals("asc") ? ASC : DESC,
-                        orderBy
+                    orderWay.equals("asc") ? ASC : DESC,
+                    orderBy
                 )
         );
     }
@@ -231,6 +231,9 @@ public class UserFileService {
         userFileRepository.delete(file);
     }
 
+    public String getRealFilePath(UserFile file) {
+        return getTreeLikeFilePath(file.getId()) + "/" + file.getId() + "." + file.getExtension();
+    }
 
     public HashMap<String, Object> present(UserFile userFile) {
         return userFilePresenter.present(userFile);

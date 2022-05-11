@@ -1,6 +1,7 @@
 package unipi.cloudstorage.folder;
 
 import lombok.*;
+import unipi.cloudstorage.file.UserFile;
 import unipi.cloudstorage.user.User;
 
 import javax.persistence.*;
@@ -27,4 +28,8 @@ public class Folder {
 
     @Transient
     private List<HashMap<String, Object>> breadcrumb;
+    @Transient
+    private List<UserFile> files;
+    @Transient
+    private List<Folder> subfolders;
 }

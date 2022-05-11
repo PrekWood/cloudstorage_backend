@@ -39,7 +39,6 @@ class UserFileControllerTest extends CloudStorageTest {
             multipart("/api/file")
                 .file(file)
                 .header("Authorization", "Bearer "+bearerToken)
-                .param("name","abc")
         )
         .andExpect(status().isOk());
     }
@@ -69,7 +68,7 @@ class UserFileControllerTest extends CloudStorageTest {
             multipart("/api/file")
                 .file(file)
                 .header("Authorization", "Bearer "+bearerToken)
-                .param("name","abc")
+                
         )
         .andExpect(status().isOk());
 
@@ -104,7 +103,7 @@ class UserFileControllerTest extends CloudStorageTest {
                 multipart("/api/file")
                     .file(file)
                     .header("Authorization", "Bearer "+bearerToken)
-                    .param("name","abc")
+                    
             )
             .andExpect(status().isOk());
         }
@@ -139,7 +138,7 @@ class UserFileControllerTest extends CloudStorageTest {
                     multipart("/api/file")
                             .file(file)
                             .header("Authorization", "Bearer "+bearerToken)
-                            .param("name","abc")
+                            
             )
                     .andExpect(status().isOk());
         }
@@ -173,9 +172,9 @@ class UserFileControllerTest extends CloudStorageTest {
                     multipart("/api/file")
                             .file(file)
                             .header("Authorization", "Bearer "+bearerToken)
-                            .param("name","abc")
+                            
             )
-                    .andExpect(status().isOk());
+                .andExpect(status().isOk());
         }
 
         // get files order by date add
@@ -207,7 +206,7 @@ class UserFileControllerTest extends CloudStorageTest {
                     multipart("/api/file")
                             .file(file)
                             .header("Authorization", "Bearer "+bearerToken)
-                            .param("name","abc")
+                            
             )
                     .andExpect(status().isOk());
         }
@@ -242,7 +241,7 @@ class UserFileControllerTest extends CloudStorageTest {
                 multipart("/api/file")
                     .file(file)
                     .header("Authorization", "Bearer "+bearerToken)
-                    .param("name","abc")
+                    
             )
             .andExpect(status().isOk())
             .andReturn();
@@ -293,7 +292,7 @@ class UserFileControllerTest extends CloudStorageTest {
                     multipart("/api/file")
                             .file(file)
                             .header("Authorization", "Bearer "+bearerToken)
-                            .param("name","abc")
+                            
             )
                     .andExpect(status().isOk())
                     .andReturn();
@@ -348,7 +347,7 @@ class UserFileControllerTest extends CloudStorageTest {
                     multipart("/api/file")
                             .file(file)
                             .header("Authorization", "Bearer "+bearerToken)
-                            .param("name","abc")
+                            
             )
                     .andExpect(status().isOk())
                     .andReturn();
@@ -403,7 +402,7 @@ class UserFileControllerTest extends CloudStorageTest {
                     multipart("/api/file")
                             .file(file)
                             .header("Authorization", "Bearer "+bearerToken)
-                            .param("name","abc")
+                            
             )
                     .andExpect(status().isOk())
                     .andReturn();
@@ -457,7 +456,7 @@ class UserFileControllerTest extends CloudStorageTest {
                     multipart("/api/file")
                             .file(file)
                             .header("Authorization", "Bearer "+bearerToken)
-                            .param("name","abc")
+                            
             )
                     .andExpect(status().isOk())
                     .andReturn();
@@ -513,7 +512,7 @@ class UserFileControllerTest extends CloudStorageTest {
                     multipart("/api/file")
                         .file(file)
                         .header("Authorization", "Bearer "+bearerToken)
-                        .param("name","abc")
+                        
             )
             .andExpect(status().isOk())
             .andReturn();
@@ -555,7 +554,7 @@ class UserFileControllerTest extends CloudStorageTest {
                     multipart("/api/file")
                         .file(file)
                         .header("Authorization", "Bearer "+bearerToken)
-                        .param("name","abc")
+                        
             )
             .andExpect(status().isOk())
             .andReturn();
@@ -597,7 +596,7 @@ class UserFileControllerTest extends CloudStorageTest {
                     multipart("/api/file")
                         .file(file)
                         .header("Authorization", "Bearer "+bearerToken)
-                        .param("name","abc")
+                        
             )
             .andExpect(status().isOk())
             .andReturn();
