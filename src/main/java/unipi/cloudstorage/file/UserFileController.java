@@ -8,6 +8,10 @@ import org.springframework.web.multipart.MultipartFile;
 import unipi.cloudstorage.file.exceptions.UserFileCouldNotBeUploaded;
 import unipi.cloudstorage.file.exceptions.UserFileNotFound;
 import unipi.cloudstorage.file.requests.DigitalSignatureValidationRequest;
+import unipi.cloudstorage.file.requests.GetFilesRequest;
+import unipi.cloudstorage.file.requests.UpdateUserFileRequest;
+import unipi.cloudstorage.folder.Folder;
+import unipi.cloudstorage.folder.FolderService;
 import unipi.cloudstorage.shared.FileManager;
 import unipi.cloudstorage.shared.ResponseHandler;
 import unipi.cloudstorage.shared.Validate;
@@ -34,20 +38,21 @@ public class UserFileController extends ResponseHandler {
     private final UserService userService;
     private final FileManager fileManager;
     private final FileEncoder fileEncoder;
+    private final FolderService folderService;
 
     @CrossOrigin
-    @PostMapping("file/upload" )
-    public ResponseEntity<?> uploadFile(@RequestParam MultipartFile file) {
+    @PostMapping("file" )
+    public ResponseEntity<?> uploadFile(@RequestParam MultipartFile file, @RequestParam Long folderId) {
 
         // Get user from token
-        User logedInUser = userService.loadUserFromJwt();
-        if (logedInUser == null) {
+        User loggedInUser = userService.loadUserFromJwt();
+        if (loggedInUser == null) {
             return createErrorResponse(HttpStatus.FORBIDDEN, "You are not loged in" );
         }
 
         String fileName = file.getOriginalFilename();
         if (fileName == null) {
-            return createErrorResponse("Couldn't find the file's name" );
+            return createErrorResponse("Couldn't get the file's name" );
         }
 
         // first upload image to tmp
@@ -60,15 +65,24 @@ public class UserFileController extends ResponseHandler {
             return createErrorResponse("Couldn't upload file" );
         }
 
-        // get file extention
+        // get file extension
         String fileExtension = fileManager.getFileExtension(fileName);
+
+        // get root folder
+        Folder folder;
+        if(folderId == null){
+            folder = folderService.getRootFolderOfUser(loggedInUser);
+        }else{
+            folder = folderService.getFolderById(loggedInUser.getId(),folderId);
+        }
 
         // create img in db
         UserFile userFile = new UserFile();
-        userFile.setUser(logedInUser);
+        userFile.setUser(loggedInUser);
         userFile.setFilePath("tmp/" + tmpFileName);
         userFile.setExtension(fileExtension);
         userFile.setFileName(fileName);
+        userFile.setFolder(folder);
         userFile.setDateAdd(LocalDateTime.now());
         userFileService.save(userFile);
 
@@ -97,45 +111,7 @@ public class UserFileController extends ResponseHandler {
             return createErrorResponse("Couldn't update the file" );
         }
 
-        return createSuccessResponse();
-    }
-
-    @CrossOrigin
-    @PostMapping("file/{idFile}/favorite" )
-    public ResponseEntity<?> toggleFavorite(@PathVariable Long idFile) {
-
-        // Get user from token
-        User logedInUser = userService.loadUserFromJwt();
-
-        if (logedInUser == null) {
-            return createErrorResponse(HttpStatus.FORBIDDEN, "You are not loged in" );
-        }
-
-        // Search file by id
-        UserFile file = null;
-        try {
-            file = userFileService.getFileById(idFile);
-            if (file == null) {
-                throw new UserFileNotFound();
-            }
-        } catch (UserFileNotFound e) {
-            return createErrorResponse("File not found" );
-        }
-
-        // Block if this file doesn't belong to the user
-        if (!file.getUser().getId().equals(logedInUser.getId())) {
-            return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to this file" );
-        }
-
-        // Update favorite
-        try {
-            file.setFavorite(!file.isFavorite());
-            userFileService.update(file);
-        } catch (UserFileNotFound userFileNotFound) {
-            return createErrorResponse("Something went wrong please try again" );
-        }
-
-        return createSuccessResponse(userFileService.present(file));
+        return createSuccessResponse(userFileService.present(userFile));
     }
 
     @CrossOrigin
@@ -144,48 +120,67 @@ public class UserFileController extends ResponseHandler {
             @PathVariable(required = false) String orderBy,
             @PathVariable(required = false) String orderWay,
             @RequestParam(required = false) String searchQuery,
-            @RequestParam(required = false) Boolean onlyFavorites
+            @RequestParam(required = false) Long folderId,
+            @RequestParam(required = false) Boolean onlyFavorites,
+            @RequestParam(required = false) Boolean allFiles
     ) {
 
         // Get user from token
-        User logedInUser = userService.loadUserFromJwt();
-        if (logedInUser == null) {
+        User loggedInUser = userService.loadUserFromJwt();
+        if (loggedInUser == null) {
             return createErrorResponse(HttpStatus.FORBIDDEN, "You are not loged in" );
         }
 
+        // Assign default values
         if (onlyFavorites==null || !onlyFavorites) {
-            onlyFavorites = false;
+            onlyFavorites = null;
+        }
+        if (folderId==null) {
+            folderId = folderService.getRootFolderOfUser(loggedInUser).getId();
+        }
+        if(orderBy == null){
+            orderBy = "dateAdd";
+        }
+        if(orderWay == null){
+            orderWay = "desc";
+        }
+        if(allFiles == null){
+            allFiles = false;
         }
 
-        List<UserFile> filesList = new ArrayList<>();
+        List<UserFile> filesList;
         if(Validate.isEmpty(searchQuery)){
-            if(onlyFavorites){
-                System.out.println("getFavoriteFilesByUserId");
-                filesList = userFileService.getFavoriteFilesByUserId(logedInUser.getId(), "date_add","desc");
-            }else{
-                System.out.println("getFilesByUserId");
-                filesList = userFileService.getFilesByUserId(logedInUser.getId(), orderBy, orderWay);
-            }
+            filesList = userFileService.getFiles(
+                loggedInUser.getId(),
+                folderId,
+                onlyFavorites,
+                orderBy,
+                orderWay,
+                allFiles
+            );
         }else{
-            if(onlyFavorites){
-                System.out.println("searchInFavorites");
-                filesList = userFileService.searchInFavorites(logedInUser.getId(), searchQuery, orderBy, orderWay);
-            }else{
-                System.out.println("search");
-                filesList = userFileService.search(logedInUser.getId(), searchQuery, orderBy, orderWay);
-            }
+            filesList = userFileService.search(
+                loggedInUser.getId(),
+                folderId,
+                onlyFavorites,
+                searchQuery,
+                orderBy,
+                orderWay,
+                allFiles
+            );
         }
 
         return createSuccessResponse(userFileService.present(filesList));
     }
 
+
     @CrossOrigin
-    @GetMapping("file/{idFile}/download" )
+    @GetMapping("file/{idFile}" )
     public ResponseEntity<?> downloadFile(@PathVariable Long idFile) {
 
         // Get user from token
-        User logedInUser = userService.loadUserFromJwt();
-        if (logedInUser == null) {
+        User loggedInUser = userService.loadUserFromJwt();
+        if (loggedInUser == null) {
             return createErrorResponse(HttpStatus.FORBIDDEN, "You are not loged in" );
         }
 
@@ -201,7 +196,7 @@ public class UserFileController extends ResponseHandler {
         }
 
         // Block if this file doesn't belong to the user
-        if (!file.getUser().getId().equals(logedInUser.getId())) {
+        if (!file.getUser().getId().equals(loggedInUser.getId())) {
             return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to this file" );
         }
 
@@ -233,8 +228,8 @@ public class UserFileController extends ResponseHandler {
     public ResponseEntity<?> validateDigitalSignature(@PathVariable Long idFile, @RequestBody DigitalSignatureValidationRequest request) {
 
         // Get user from token
-        User logedInUser = userService.loadUserFromJwt();
-        if (logedInUser == null) {
+        User loggedInUser = userService.loadUserFromJwt();
+        if (loggedInUser == null) {
             return createErrorResponse(HttpStatus.FORBIDDEN, "You are not loged in" );
         }
 
@@ -250,7 +245,7 @@ public class UserFileController extends ResponseHandler {
         }
 
         // Block if this file doesn't belong to the user
-        if (!file.getUser().getId().equals(logedInUser.getId())) {
+        if (!file.getUser().getId().equals(loggedInUser.getId())) {
             return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to this file" );
         }
 
@@ -285,8 +280,8 @@ public class UserFileController extends ResponseHandler {
     public ResponseEntity<?> deleteFile(@PathVariable Long idFile) {
 
         // Get user from token
-        User logedInUser = userService.loadUserFromJwt();
-        if (logedInUser == null) {
+        User loggedInUser = userService.loadUserFromJwt();
+        if (loggedInUser == null) {
             return createErrorResponse(HttpStatus.FORBIDDEN, "You are not loged in" );
         }
 
@@ -302,7 +297,7 @@ public class UserFileController extends ResponseHandler {
         }
 
         // Block if this file doesn't belong to the user
-        if (!file.getUser().getId().equals(logedInUser.getId())) {
+        if (!file.getUser().getId().equals(loggedInUser.getId())) {
             return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to this file" );
         }
 
@@ -314,6 +309,53 @@ public class UserFileController extends ResponseHandler {
         }
 
         return createSuccessResponse();
+    }
+
+
+    @CrossOrigin
+    @PutMapping("file/{idFile}/" )
+    public ResponseEntity<?> updateFile(
+        @RequestBody UpdateUserFileRequest request,
+        @PathVariable Long idFile
+    ) {
+
+        // Get user from token
+        User loggedInUser = userService.loadUserFromJwt();
+        if (loggedInUser == null) {
+            return createErrorResponse(HttpStatus.FORBIDDEN, "You are not loged in" );
+        }
+
+        // Search file by id
+        UserFile file = null;
+        try {
+            file = userFileService.getFileById(idFile);
+            if (file == null) {
+                throw new UserFileNotFound();
+            }
+        } catch (UserFileNotFound e) {
+            return createErrorResponse("File not found" );
+        }
+
+        // Block if this file doesn't belong to the user
+        if (!file.getUser().getId().equals(loggedInUser.getId())) {
+            return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to this file" );
+        }
+
+        // Try to update file
+        if(request.getFavorite() != null){
+            file.setFavorite(request.getFavorite());
+        }
+        if(!Validate.isEmpty(request.getFileName())){
+            file.setFileName(request.getFileName());
+        }
+
+        try {
+            userFileService.update(file);
+        } catch (UserFileNotFound userFileNotFound) {
+            return createErrorResponse("File not found" );
+        }
+
+        return createSuccessResponse(userFileService.present(file));
     }
 
 

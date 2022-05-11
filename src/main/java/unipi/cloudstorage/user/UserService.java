@@ -11,10 +11,12 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import unipi.cloudstorage.folder.Folder;
 import unipi.cloudstorage.otp.Otp;
 import unipi.cloudstorage.otp.OtpRepository;
 import unipi.cloudstorage.user.exceptions.EmailAlreadyBeingUsedUserException;
 import unipi.cloudstorage.user.exceptions.UserNotFoundException;
+import unipi.cloudstorage.user.responses.PresentedUserResponse;
 
 import java.util.HashMap;
 import java.util.List;
@@ -67,17 +69,16 @@ public class UserService implements UserDetailsService {
 
 
     public User loadUserFromJwt(){
-        Object logedInUserEmail = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if(logedInUserEmail == null || logedInUserEmail.equals("")){
+        Object loggedInUserEmail = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if(loggedInUserEmail == null || loggedInUserEmail.equals("")){
             return null;
         }
-        return this.loadUserByUsername((String)logedInUserEmail);
+        return this.loadUserByUsername((String)loggedInUserEmail);
     }
 
-    public HashMap<String, Object> present(User user){
+    public PresentedUserResponse present(User user){
         return presenter.present(user);
     }
-
 
 
 }

@@ -1,21 +1,12 @@
 package unipi.cloudstorage.file;
 
 import lombok.AllArgsConstructor;
-import org.hibernate.criterion.CriteriaQuery;
-import org.hibernate.criterion.Order;
-import org.jetbrains.annotations.NotNull;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import unipi.cloudstorage.file.enums.UserFileField;
 import unipi.cloudstorage.file.exceptions.UserFileCouldNotBeUploaded;
 import unipi.cloudstorage.file.exceptions.UserFileNotFound;
 import unipi.cloudstorage.shared.FileManager;
-import unipi.cloudstorage.shared.enums.OrderWay;
-import unipi.cloudstorage.user.User;
-import unipi.cloudstorage.user.exceptions.UserNotFoundException;
 
 import javax.servlet.ServletContext;
 import java.io.IOException;
@@ -26,6 +17,9 @@ import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.*;
 import java.io.File;
+
+import static org.springframework.data.domain.Sort.Direction.ASC;
+import static org.springframework.data.domain.Sort.Direction.DESC;
 
 @Service
 @AllArgsConstructor
@@ -42,7 +36,7 @@ public class UserFileService {
             Path path = Paths.get(filePath);
             Files.write(path, data);
         } catch (IOException e) {
-            throw new UserFileCouldNotBeUploaded("The file couldn't be uplaoded" );
+            throw new UserFileCouldNotBeUploaded("The file couldn't be uplaoded");
         }
     }
 
@@ -54,7 +48,7 @@ public class UserFileService {
     public UserFile getFileById(Long idFile) throws UserFileNotFound {
         Optional<UserFile> file = userFileRepository.findById(idFile);
         if (!file.isPresent() || file.isEmpty()) {
-            throw new UserFileNotFound("file not found" );
+            throw new UserFileNotFound("file not found");
         }
         return file.get();
     }
@@ -89,7 +83,7 @@ public class UserFileService {
         // Search for user
         UserFile existingFile = userFileRepository.findById(fileToUpdate.getId()).orElse(null);
         if (existingFile == null) {
-            throw new UserFileNotFound("File was not found while trying to update it" );
+            throw new UserFileNotFound("File was not found while trying to update it");
         }
 
         existingFile.setFilePath(fileToUpdate.getFilePath());
@@ -103,68 +97,130 @@ public class UserFileService {
         StringBuilder treeLikeFilePathBuilder = new StringBuilder();
         treeLikeFilePathBuilder.append(fileManager.getUserFilesPath());
         for (int letterPosition = 0; letterPosition < idFileString.length(); letterPosition++) {
-            treeLikeFilePathBuilder.append("/" );
+            treeLikeFilePathBuilder.append("/");
             treeLikeFilePathBuilder.append(idFileString.charAt(letterPosition));
         }
         return treeLikeFilePathBuilder.toString();
     }
 
-    public List<UserFile> getFilesByUserId(Long idUser) {
-        return userFileRepository.findAllByUserId(idUser);
-    }
-    public List<UserFile> getFilesByUserId(Long idUser, String orderBy, String orderWay) {
-        List<UserFile> filesList = new ArrayList<>();
-        if(orderBy == null){
-            return userFileRepository.findAllByUserId(idUser);
+    public List<UserFile> getFiles(
+            Long idUser,
+            Long folderId,
+            Boolean favorite,
+            String orderBy,
+            String orderWay,
+            Boolean allFiles
+    ) {
+
+        if (favorite == null) {
+            if (allFiles) {
+                return userFileRepository.findAllByUserId(
+                        idUser,
+                        Sort.by(
+                                orderWay.equals("asc") ? ASC : DESC,
+                                orderBy
+                        )
+                );
+            }
+            return userFileRepository.findAllByUserIdAndFolderId(
+                    idUser,
+                    folderId,
+                    Sort.by(
+                            orderWay.equals("asc") ? ASC : DESC,
+                            orderBy
+                    )
+            );
         }
-        switch (orderBy) {
-            case "date_add" -> {
-                if(orderWay == null || orderWay.equals("desc")){
-                    return userFileRepository.findAllByUserIdOrderByDateAddDesc(idUser);
-                }
-                return userFileRepository.findAllByUserIdOrderByDateAddAsc(idUser);
-            }
-            case "name" -> {
-                if(orderWay == null || orderWay.equals("desc")){
-                    System.out.println("name desc");
-                    return userFileRepository.findAllByUserIdOrderByFileNameDesc(idUser);
-                }
-                System.out.println("name asc");
-                return userFileRepository.findAllByUserIdOrderByFileNameAsc(idUser);
-            }
-            default -> {
-                System.out.println("default");
-                return userFileRepository.findAllByUserId(idUser);
-            }
+
+        if (allFiles) {
+            return userFileRepository.findAllByUserIdAndFavorite(
+                    idUser,
+                    favorite,
+                    Sort.by(
+                            orderWay.equals("asc") ? ASC : DESC,
+                            orderBy
+                    )
+            );
         }
-    }
-    public List<UserFile> getFavoriteFilesByUserId(Long idUser, String orderBy, String orderWay) {
-        List<UserFile> filesList = new ArrayList<>();
-        if(orderBy == null){
-            return userFileRepository.findAllByUserIdAndFavoriteIsTrue(idUser);
-        }
-        switch (orderBy) {
-            case "date_add" -> {
-                if(orderWay == null || orderWay.equals("desc")){
-                    return userFileRepository.findAllByUserIdAndFavoriteIsTrueOrderByDateAddDesc(idUser);
-                }
-                return userFileRepository.findAllByUserIdAndFavoriteIsTrueOrderByDateAddAsc(idUser);
-            }
-            case "name" -> {
-                if(orderWay == null || orderWay.equals("desc")){
-                    System.out.println("name desc");
-                    return userFileRepository.findAllByUserIdAndFavoriteIsTrueOrderByFileNameDesc(idUser);
-                }
-                System.out.println("name asc");
-                return userFileRepository.findAllByUserIdAndFavoriteIsTrueOrderByFileNameAsc(idUser);
-            }
-            default -> {
-                System.out.println("default");
-                return userFileRepository.findAllByUserIdAndFavoriteIsTrue(idUser);
-            }
-        }
+
+        return userFileRepository.findAllByUserIdAndFolderIdAndFavorite(
+                idUser,
+                folderId,
+                favorite,
+                Sort.by(
+                        orderWay.equals("asc") ? ASC : DESC,
+                        orderBy
+                )
+        );
     }
 
+    public List<UserFile> getFiles(
+            Long idUser,
+            Long folderId
+    ) {
+        return userFileRepository.findAllByUserIdAndFolderId(
+                idUser,
+                folderId,
+                Sort.by(
+                        DESC,
+                        "dateAdd"
+                )
+        );
+    }
+
+
+    public List<UserFile> search(
+            Long idUser,
+            Long folderId,
+            Boolean favorite,
+            String searchQuery,
+            String orderBy,
+            String orderWay,
+            Boolean allFiles
+    ) {
+        if (favorite == null) {
+            if (allFiles) {
+                return userFileRepository.findAllByUserIdAndFileNameContains(
+                        idUser,
+                        searchQuery,
+                        Sort.by(
+                                orderWay.equals("asc") ? ASC : DESC,
+                                orderBy
+                        )
+                );
+            }
+            return userFileRepository.findAllByUserIdAndFolderIdAndFileNameContains(
+                    idUser,
+                    folderId,
+                    searchQuery,
+                    Sort.by(
+                            orderWay.equals("asc") ? ASC : DESC,
+                            orderBy
+                    )
+            );
+        }
+        if (allFiles) {
+            return userFileRepository.findAllByUserIdAndFavoriteAndFileNameContains(
+                    idUser,
+                    favorite,
+                    searchQuery,
+                    Sort.by(
+                            orderWay.equals("asc") ? ASC : DESC,
+                            orderBy
+                    )
+            );
+        }
+        return userFileRepository.findAllByUserIdAndFolderIdAndFavoriteAndFileNameContains(
+                idUser,
+                folderId,
+                favorite,
+                searchQuery,
+                Sort.by(
+                        orderWay.equals("asc") ? ASC : DESC,
+                        orderBy
+                )
+        );
+    }
 
     public void delete(UserFile file) throws UserFileNotFound {
         String filePath = fileManager.getUserFilesPath() + file.getFilePath();
@@ -175,52 +231,6 @@ public class UserFileService {
         userFileRepository.delete(file);
     }
 
-    public List<UserFile> search(Long idUser, String searchQuery, String orderBy, String orderWay) {
-        List<UserFile> filesList = new ArrayList<>();
-        if(orderBy == null){
-            return userFileRepository.findAllByUserIdAndFileNameContains(idUser, searchQuery);
-        }
-        switch (orderBy) {
-            case "date_add" -> {
-                if(orderWay == null || orderWay.equals("desc")){
-                    return userFileRepository.findAllByUserIdAndFileNameContainsOrderByDateAddDesc(idUser, searchQuery);
-                }
-                return userFileRepository.findAllByUserIdAndFileNameContainsOrderByDateAddAsc(idUser, searchQuery);
-            }
-            case "name" -> {
-                if(orderWay == null || orderWay.equals("desc")){
-                    return userFileRepository.findAllByUserIdAndFileNameContainsOrderByFileNameDesc(idUser, searchQuery);
-                }
-                return userFileRepository.findAllByUserIdAndFileNameContainsOrderByFileNameAsc(idUser, searchQuery);
-            }
-            default -> {
-                return userFileRepository.findAllByUserIdAndFileNameContains(idUser, searchQuery);
-            }
-        }
-    }
-    public List<UserFile> searchInFavorites(Long idUser, String searchQuery, String orderBy, String orderWay) {
-        List<UserFile> filesList = new ArrayList<>();
-        if(orderBy == null){
-            return userFileRepository.findAllByUserIdAndFavoriteIsTrueAndFileNameContains(idUser, searchQuery);
-        }
-        switch (orderBy) {
-            case "date_add" -> {
-                if(orderWay == null || orderWay.equals("desc")){
-                    return userFileRepository.findAllByUserIdAndFavoriteIsTrueAndFileNameContainsOrderByDateAddDesc(idUser, searchQuery);
-                }
-                return userFileRepository.findAllByUserIdAndFavoriteIsTrueAndFileNameContainsOrderByDateAddAsc(idUser, searchQuery);
-            }
-            case "name" -> {
-                if(orderWay == null || orderWay.equals("desc")){
-                    return userFileRepository.findAllByUserIdAndFavoriteIsTrueAndFileNameContainsOrderByFileNameDesc(idUser, searchQuery);
-                }
-                return userFileRepository.findAllByUserIdAndFavoriteIsTrueAndFileNameContainsOrderByFileNameAsc(idUser, searchQuery);
-            }
-            default -> {
-                return userFileRepository.findAllByUserIdAndFavoriteIsTrueAndFileNameContains(idUser, searchQuery);
-            }
-        }
-    }
 
     public HashMap<String, Object> present(UserFile userFile) {
         return userFilePresenter.present(userFile);

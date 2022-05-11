@@ -6,6 +6,6 @@ import java.util.HashMap;
 import java.util.List;
 
 public interface ModelPresenter<T> {
-    public HashMap<String, Object> present(T object);
-    public List<HashMap<String, Object>> presentMultiple(List<T> objectList);
+    public Object present(T object);
+    public Object presentMultiple(List<T> objectList);
 }

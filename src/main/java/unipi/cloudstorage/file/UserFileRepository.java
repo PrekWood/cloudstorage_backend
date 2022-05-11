@@ -1,5 +1,6 @@
 package unipi.cloudstorage.file;
 
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -14,31 +15,61 @@ import java.util.List;
 
 @Repository
 public interface UserFileRepository extends JpaRepository<UserFile, Long> {
-    // Get files by user id
-    List<UserFile> findAllByUserId(@Param("uid") Long uid);
-    List<UserFile> findAllByUserIdOrderByDateAddDesc(@Param("uid") Long uid);
-    List<UserFile> findAllByUserIdOrderByDateAddAsc(@Param("uid") Long uid);
-    List<UserFile> findAllByUserIdOrderByFileNameDesc(@Param("uid") Long uid);
-    List<UserFile> findAllByUserIdOrderByFileNameAsc(@Param("uid") Long uid);
 
-    // Get favorite files by user id
-    List<UserFile> findAllByUserIdAndFavoriteIsTrue(@Param("uid") Long uid);
-    List<UserFile> findAllByUserIdAndFavoriteIsTrueOrderByDateAddDesc(@Param("uid") Long uid);
-    List<UserFile> findAllByUserIdAndFavoriteIsTrueOrderByDateAddAsc(@Param("uid") Long uid);
-    List<UserFile> findAllByUserIdAndFavoriteIsTrueOrderByFileNameDesc(@Param("uid") Long uid);
-    List<UserFile> findAllByUserIdAndFavoriteIsTrueOrderByFileNameAsc(@Param("uid") Long uid);
+    List<UserFile> findAllByUserId(
+            @Param("uid") Long uid,
+            @Param("s") Sort s
+    );
 
-    // Search for files by name given a user
-    List<UserFile> findAllByUserIdAndFileNameContains(@Param("uid") Long uid, @Param("s") String s);
-    List<UserFile> findAllByUserIdAndFileNameContainsOrderByDateAddDesc(@Param("uid") Long uid, @Param("s") String s);
-    List<UserFile> findAllByUserIdAndFileNameContainsOrderByDateAddAsc(@Param("uid") Long uid, @Param("s") String s);
-    List<UserFile> findAllByUserIdAndFileNameContainsOrderByFileNameDesc(@Param("uid") Long uid, @Param("s") String s);
-    List<UserFile> findAllByUserIdAndFileNameContainsOrderByFileNameAsc(@Param("uid") Long uid, @Param("s") String s);
+    List<UserFile> findAllByUserIdAndFolderId(
+            @Param("uid") Long uid,
+            @Param("fid") Long fid,
+            @Param("s") Sort s
+    );
 
-    // Search for favorite files by name given a user
-    List<UserFile> findAllByUserIdAndFavoriteIsTrueAndFileNameContains(@Param("uid") Long uid, @Param("s") String s);
-    List<UserFile> findAllByUserIdAndFavoriteIsTrueAndFileNameContainsOrderByDateAddDesc(@Param("uid") Long uid, @Param("s") String s);
-    List<UserFile> findAllByUserIdAndFavoriteIsTrueAndFileNameContainsOrderByDateAddAsc(@Param("uid") Long uid, @Param("s") String s);
-    List<UserFile> findAllByUserIdAndFavoriteIsTrueAndFileNameContainsOrderByFileNameDesc(@Param("uid") Long uid, @Param("s") String s);
-    List<UserFile> findAllByUserIdAndFavoriteIsTrueAndFileNameContainsOrderByFileNameAsc(@Param("uid") Long uid, @Param("s") String s);
+    List<UserFile> findAllByUserIdAndFavorite(
+        @Param("uid") Long uid,
+        @Param("fav") Boolean fav,
+        @Param("s") Sort s
+    );
+
+    List<UserFile> findAllByUserIdAndFolderIdAndFavorite(
+        @Param("uid") Long uid,
+        @Param("fid") Long fid,
+        @Param("fav") Boolean fav,
+        @Param("s") Sort s
+    );
+
+    List<UserFile> findAllByUserIdAndFavoriteIsTrue(
+        @Param("uid") Long uid,
+        @Param("s") Sort s
+    );
+
+    List<UserFile> findAllByUserIdAndFileNameContains(
+        @Param("uid") Long uid,
+        @Param("s") String search,
+        @Param("s") Sort sort
+    );
+
+    List<UserFile> findAllByUserIdAndFolderIdAndFileNameContains(
+        @Param("uid") Long uid,
+        @Param("fid") Long fid,
+        @Param("s") String search,
+        @Param("s") Sort sort
+    );
+
+    List<UserFile> findAllByUserIdAndFavoriteAndFileNameContains(
+        @Param("uid") Long uid,
+        @Param("fav") Boolean fav,
+        @Param("s") String search,
+        @Param("s") Sort sort
+    );
+
+    List<UserFile> findAllByUserIdAndFolderIdAndFavoriteAndFileNameContains(
+        @Param("uid") Long uid,
+        @Param("fid") Long fid,
+        @Param("fav") Boolean fav,
+        @Param("s") String search,
+        @Param("s") Sort sort
+    );
 }
