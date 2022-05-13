@@ -1,6 +1,7 @@
 package unipi.cloudstorage.folder;
 
 import lombok.AllArgsConstructor;
+import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -197,8 +198,8 @@ public class FolderController extends ResponseHandler {
     }
 
     @CrossOrigin
-    @GetMapping("folder/{idFolder}/download" )
-    public ResponseEntity<?> downloadFolder(
+    @GetMapping("folder/{idFolder}/zip" )
+    public ResponseEntity<?> createZipAndDownloadIt(
         @PathVariable Long idFolder
     ) {
 
@@ -251,6 +252,41 @@ public class FolderController extends ResponseHandler {
         responseBody.put("digitalSignature", digitalSignatureHex);
         responseBody.put("file", fileBytes);
         return createSuccessResponse(responseBody);
+    }
+
+    @CrossOrigin
+    @DeleteMapping("folder/{idFolder}/zip"  )
+    public ResponseEntity<?> deleteZip(
+        @PathVariable Long idFolder
+    ) {
+
+        System.out.println("delete zip");
+
+        // Get user from token
+        User loggedInUser = userService.loadUserFromJwt();
+        if (loggedInUser == null) {
+            return createErrorResponse(HttpStatus.FORBIDDEN, "You are not logged in" );
+        }
+
+        // Search file by id
+        Folder folder = null;
+        try {
+            folder = folderService.getFolderById(loggedInUser.getId(), idFolder);
+            if (folder == null) {
+                throw new FolderNotFoundException("Folder not found");
+            }
+        } catch (FolderNotFoundException e) {
+            return createErrorResponse(e.getMessage());
+        }
+
+        // Delete zip
+        try {
+            FileUtils.deleteDirectory(new File(folderService.getFolderZipLocation(folder)));
+        } catch (IOException e) {
+            return createErrorResponse("The zip could not be deleted");
+        }
+
+        return createSuccessResponse();
     }
 
 }

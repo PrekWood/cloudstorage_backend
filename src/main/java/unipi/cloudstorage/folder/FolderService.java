@@ -20,7 +20,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.zip.ZipEntry;
+import java.util.Optional;
 import java.util.zip.ZipOutputStream;
 
 @AllArgsConstructor
@@ -46,6 +46,14 @@ public class FolderService {
 
     public Folder getFolderById(Long userId, Long folderId){
         return repository.findFirstByUserIdAndId(userId, folderId);
+    }
+
+    public Folder getFolderById(Long folderId){
+        Optional<Folder> folderFound = repository.findById(folderId);
+        if(folderFound.isEmpty()){
+            return null;
+        }
+        return folderFound.get();
     }
 
     public void update(Folder folderToUpdate) throws FolderNotFoundException {
@@ -225,9 +233,13 @@ public class FolderService {
         }
     }
     public String createFolderInTmp(Folder folder) throws IOException {
-        String tmpFolderPath = fileManager.getUserFilesPath()+"/compressed_folders_tmp/"+folder.getId()+"/";
+        String tmpFolderPath = getFolderZipLocation(folder);
         createFolderInTmp(folder, tmpFolderPath+folder.getName());
         return tmpFolderPath;
+    }
+
+    public String getFolderZipLocation(Folder folder){
+        return fileManager.getUserFilesPath()+"/compressed_folders_tmp/"+folder.getId()+"/";
     }
 
     public String createZip(Folder folder) throws FolderZipCouldNotBeCreated {

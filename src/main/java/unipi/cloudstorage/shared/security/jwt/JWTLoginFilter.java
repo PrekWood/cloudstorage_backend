@@ -70,8 +70,6 @@ public class JWTLoginFilter extends UsernamePasswordAuthenticationFilter {
 
     @Override
     protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response, AuthenticationException failed) throws IOException, ServletException {
-        System.out.println("unsuccessfulAuthentication");
-        System.out.println("failed");
         super.unsuccessfulAuthentication(request, response, failed);
     }
 }
