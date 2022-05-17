@@ -1,11 +1,9 @@
 package unipi.cloudstorage.file;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.core.io.FileSystemResource;
 import unipi.cloudstorage.folder.Folder;
+import unipi.cloudstorage.sharing.Sharable;
 import unipi.cloudstorage.user.User;
 
 import javax.persistence.*;
@@ -14,19 +12,11 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @Setter
+@ToString
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserFile {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    @ManyToOne
-    private User user;
-    @ManyToOne
-    private Folder folder;
+public class UserFile extends Sharable {
     private String filePath;
     private String extension;
-    private String fileName;
     private boolean favorite;
-    private LocalDateTime dateAdd;
 }

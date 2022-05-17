@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 import unipi.cloudstorage.shared.FileManager;
 import unipi.cloudstorage.shared.ModelPresenter;
+import unipi.cloudstorage.userWithPrivileges.UserWithPrivileges;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,7 +30,7 @@ public class UserFilePresenter implements ModelPresenter<UserFile> {
         HashMap<String, Object> fileToReturn = new HashMap<>();
         fileToReturn.put("id",file.getId());
         fileToReturn.put("extension",fileExtension);
-        fileToReturn.put("name",file.getFileName());
+        fileToReturn.put("name",file.getName());
         fileToReturn.put("path",file.getFilePath());
         fileToReturn.put("idUser",file.getUser().getId());
         fileToReturn.put("favorite",file.isFavorite());
@@ -73,7 +74,7 @@ public class UserFilePresenter implements ModelPresenter<UserFile> {
             HashMap<String, Object> fileMap = new HashMap<>();
             fileMap.put("id",file.getId());
             fileMap.put("extension",fileExtension);
-            fileMap.put("name",file.getFileName());
+            fileMap.put("name",file.getName());
             fileMap.put("path",file.getFilePath());
             fileMap.put("idUser",file.getUser().getId());
             fileMap.put("favorite",file.isFavorite());
@@ -95,6 +96,22 @@ public class UserFilePresenter implements ModelPresenter<UserFile> {
             }
             fileMap.put("fileTypeIconLink",fileTypeIconLink);
             fileMap.put("fileTypeIconExists",fileTypeIconExists);
+
+            // Shared with
+            List<HashMap<String, Object>> sharedWithList = new ArrayList<>();
+            for (UserWithPrivileges userWithPrivileges : file.getSharedWith()) {
+                HashMap<String, Object> sharedWith = new HashMap<>();
+                sharedWith.put("userId",userWithPrivileges.getUser().getId());
+                sharedWith.put("userEmail",userWithPrivileges.getUser().getEmail());
+                sharedWith.put("userName",userWithPrivileges.getUser().getFirstName()+" "+userWithPrivileges.getUser().getLastName());
+                sharedWith.put("userImg",userWithPrivileges.getUser().getImagePath());
+                sharedWith.put("privileges",userWithPrivileges.getPrivileges());
+                sharedWithList.add(sharedWith);
+            }
+            if(sharedWithList.size() > 0){
+                fileMap.put("sharedWith",sharedWithList);
+            }
+
 
             // add file size
             Long fileSize;

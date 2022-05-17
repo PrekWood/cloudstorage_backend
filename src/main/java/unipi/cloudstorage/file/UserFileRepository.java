@@ -10,6 +10,7 @@ import unipi.cloudstorage.file.enums.UserFileField;
 import unipi.cloudstorage.otp.Otp;
 import unipi.cloudstorage.shared.enums.OrderWay;
 import unipi.cloudstorage.user.User;
+import unipi.cloudstorage.userWithPrivileges.UserWithPrivileges;
 
 import java.util.List;
 
@@ -28,48 +29,94 @@ public interface UserFileRepository extends JpaRepository<UserFile, Long> {
     );
 
     List<UserFile> findAllByUserIdAndFavorite(
-        @Param("uid") Long uid,
-        @Param("fav") Boolean fav,
-        @Param("s") Sort s
+            @Param("uid") Long uid,
+            @Param("fav") Boolean fav,
+            @Param("s") Sort s
     );
 
     List<UserFile> findAllByUserIdAndFolderIdAndFavorite(
-        @Param("uid") Long uid,
-        @Param("fid") Long fid,
-        @Param("fav") Boolean fav,
-        @Param("s") Sort s
+            @Param("uid") Long uid,
+            @Param("fid") Long fid,
+            @Param("fav") Boolean fav,
+            @Param("s") Sort s
     );
 
     List<UserFile> findAllByUserIdAndFavoriteIsTrue(
-        @Param("uid") Long uid,
-        @Param("s") Sort s
+            @Param("uid") Long uid,
+            @Param("s") Sort s
     );
 
-    List<UserFile> findAllByUserIdAndFileNameContains(
-        @Param("uid") Long uid,
-        @Param("s") String search,
-        @Param("s") Sort sort
+    List<UserFile> findAllByUserIdAndNameContains(
+            @Param("uid") Long uid,
+            @Param("s") String search,
+            @Param("s") Sort sort
     );
 
-    List<UserFile> findAllByUserIdAndFolderIdAndFileNameContains(
-        @Param("uid") Long uid,
-        @Param("fid") Long fid,
-        @Param("s") String search,
-        @Param("s") Sort sort
+    List<UserFile> findAllByUserIdAndFolderIdAndNameContains(
+            @Param("uid") Long uid,
+            @Param("fid") Long fid,
+            @Param("s") String search,
+            @Param("s") Sort sort
     );
 
-    List<UserFile> findAllByUserIdAndFavoriteAndFileNameContains(
-        @Param("uid") Long uid,
-        @Param("fav") Boolean fav,
-        @Param("s") String search,
-        @Param("s") Sort sort
+    List<UserFile> findAllByUserIdAndFavoriteAndNameContains(
+            @Param("uid") Long uid,
+            @Param("fav") Boolean fav,
+            @Param("s") String search,
+            @Param("s") Sort sort
     );
 
-    List<UserFile> findAllByUserIdAndFolderIdAndFavoriteAndFileNameContains(
-        @Param("uid") Long uid,
-        @Param("fid") Long fid,
-        @Param("fav") Boolean fav,
-        @Param("s") String search,
-        @Param("s") Sort sort
+    List<UserFile> findAllByUserIdAndFolderIdAndFavoriteAndNameContains(
+            @Param("uid") Long uid,
+            @Param("fid") Long fid,
+            @Param("fav") Boolean fav,
+            @Param("s") String search,
+            @Param("s") Sort sort
     );
+
+
+    @Query("""
+        SELECT file
+        FROM UserFile file 
+        JOIN file.sharedWith sharedWith 
+        WHERE sharedWith.user.id = :uid
+    """)
+    List<UserFile> searchForSharedFiles(
+            @Param("uid") Long uid,
+            @Param("s") Sort sort
+    );
+
+    @Query("""
+        SELECT file
+        FROM UserFile file
+        WHERE file.folder.id = :folderId
+    """)
+    List<UserFile> getFilesOfSharedFolder(
+            @Param("folderId") Long folderId,
+            @Param("s") Sort sort
+    );
+
+    @Query("""
+        SELECT file
+        FROM UserFile file
+        JOIN file.sharedWith sharedWith
+        WHERE sharedWith.user.id = :uid
+        AND file.name LIKE  %:searchQuery%
+    """)
+    List<UserFile> searchForSharedFiles(
+            @Param("uid") Long uid,
+            @Param("searchQuery") String searchQuery,
+            @Param("s") Sort sort
+    );
+
+    @Query(value = """
+        SELECT sharable.sharedWith
+        FROM Sharable sharable
+        WHERE sharable.id = :shareableId
+    """)
+    List<UserWithPrivileges> loadSharedWith(
+        @Param("shareableId") Long shareableId
+    );
+
+
 }

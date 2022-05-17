@@ -7,11 +7,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import unipi.cloudstorage.file.exceptions.UserFileCouldNotBeUploaded;
 import unipi.cloudstorage.file.exceptions.UserFileNotFound;
-import unipi.cloudstorage.file.requests.DigitalSignatureValidationRequest;
-import unipi.cloudstorage.file.requests.GetFilesRequest;
 import unipi.cloudstorage.file.requests.UpdateUserFileRequest;
 import unipi.cloudstorage.folder.Folder;
 import unipi.cloudstorage.folder.FolderService;
+import unipi.cloudstorage.folder.exceptions.FolderNotFoundException;
 import unipi.cloudstorage.shared.FileManager;
 import unipi.cloudstorage.shared.ResponseHandler;
 import unipi.cloudstorage.shared.Validate;
@@ -25,9 +24,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+
+import static unipi.cloudstorage.folder.Folder.ROOT_FOLDER;
 
 @RestController
 @AllArgsConstructor
@@ -46,6 +46,8 @@ public class UserFileController extends ResponseHandler {
             @RequestParam MultipartFile file,
             @RequestParam(required = false) Long folderId
     ) {
+
+        System.out.println("uploadFile");
 
         // Get user from token
         User loggedInUser = userService.loadUserFromJwt();
@@ -73,10 +75,15 @@ public class UserFileController extends ResponseHandler {
 
         // get root folder
         Folder folder;
-        if(folderId == null){
+        System.out.println(folderId);
+        if(folderId.equals(ROOT_FOLDER)){
             folder = folderService.getRootFolderOfUser(loggedInUser);
         }else{
-            folder = folderService.getFolderById(loggedInUser.getId(),folderId);
+            try {
+                folder = folderService.getFolderById(folderId);
+            } catch (FolderNotFoundException e) {
+                return createErrorResponse("Couldn't find folder" );
+            }
         }
 
         // create img in db
@@ -84,7 +91,7 @@ public class UserFileController extends ResponseHandler {
         userFile.setUser(loggedInUser);
         userFile.setFilePath("tmp/" + tmpFileName);
         userFile.setExtension(fileExtension);
-        userFile.setFileName(fileName);
+        userFile.setName(fileName);
         userFile.setFolder(folder);
         userFile.setDateAdd(LocalDateTime.now());
         userFileService.save(userFile);
@@ -139,7 +146,7 @@ public class UserFileController extends ResponseHandler {
         }
 
         // Block if this file doesn't belong to the user
-        if (!file.getUser().getId().equals(loggedInUser.getId())) {
+        if (!userFileService.checkAccess(loggedInUser, file)) {
             return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to this file" );
         }
 
@@ -187,7 +194,7 @@ public class UserFileController extends ResponseHandler {
         }
 
         // Block if this file doesn't belong to the user
-        if (!file.getUser().getId().equals(loggedInUser.getId())) {
+        if (!userFileService.checkAccess(loggedInUser, file)) {
             return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to this file" );
         }
 
@@ -216,8 +223,8 @@ public class UserFileController extends ResponseHandler {
         }
 
         // Block if this file doesn't belong to the user
-        if (!file.getUser().getId().equals(loggedInUser.getId())) {
-            return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to this file" );
+        if (!userFileService.checkAccess(loggedInUser, file, "delete")) {
+            return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to delete this file" );
         }
 
         // Try to delete file
@@ -255,8 +262,8 @@ public class UserFileController extends ResponseHandler {
         }
 
         // Block if this file doesn't belong to the user
-        if (!file.getUser().getId().equals(loggedInUser.getId())) {
-            return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to this file" );
+        if (!userFileService.checkAccess(loggedInUser, file, "edit")) {
+            return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to edit this file" );
         }
 
         // Try to update file
@@ -264,7 +271,7 @@ public class UserFileController extends ResponseHandler {
             file.setFavorite(request.getFavorite());
         }
         if(!Validate.isEmpty(request.getFileName())){
-            file.setFileName(request.getFileName());
+            file.setName(request.getFileName());
         }
 
         try {
@@ -284,7 +291,8 @@ public class UserFileController extends ResponseHandler {
             @RequestParam(required = false) String searchQuery,
             @RequestParam(required = false) Long folderId,
             @RequestParam(required = false) Boolean onlyFavorites,
-            @RequestParam(required = false) Boolean allFiles
+            @RequestParam(required = false) Boolean allFiles,
+            @RequestParam(required = false) Boolean onlyShared
     ) {
 
         // Get user from token
@@ -297,7 +305,9 @@ public class UserFileController extends ResponseHandler {
         if (onlyFavorites==null || !onlyFavorites) {
             onlyFavorites = null;
         }
-        if (folderId==null) {
+        boolean isFolderRoot = false;
+        if (folderId.equals(ROOT_FOLDER)) {
+            isFolderRoot = true;
             folderId = folderService.getRootFolderOfUser(loggedInUser).getId();
         }
         if(orderBy == null){
@@ -309,8 +319,22 @@ public class UserFileController extends ResponseHandler {
         if(allFiles == null){
             allFiles = false;
         }
+        if(onlyShared == null){
+            onlyShared = false;
+        }
 
         List<UserFile> filesList;
+        if(onlyShared){
+            filesList = userFileService.getSharedFiles(
+                loggedInUser.getId(),
+                isFolderRoot ? null : folderId,
+                searchQuery,
+                orderBy,
+                orderWay
+            );
+            return createSuccessResponse(userFileService.present(filesList, true));
+        }
+
         if(Validate.isEmpty(searchQuery)){
             filesList = userFileService.getFiles(
                 loggedInUser.getId(),
@@ -332,13 +356,8 @@ public class UserFileController extends ResponseHandler {
             );
         }
 
-        return createSuccessResponse(userFileService.present(filesList));
+        return createSuccessResponse(userFileService.present(filesList, true));
     }
-
-
-
-
-
 
 
 }

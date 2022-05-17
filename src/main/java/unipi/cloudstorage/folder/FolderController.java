@@ -5,11 +5,8 @@ import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-import unipi.cloudstorage.file.UserFile;
 import unipi.cloudstorage.file.UserFileService;
 import unipi.cloudstorage.file.exceptions.UserFileNotFound;
-import unipi.cloudstorage.file.requests.DigitalSignatureValidationRequest;
 import unipi.cloudstorage.folder.exceptions.FolderNotFoundException;
 import unipi.cloudstorage.folder.exceptions.FolderZipCouldNotBeCreated;
 import unipi.cloudstorage.folder.requests.FolderCreationRequest;
@@ -22,8 +19,6 @@ import unipi.cloudstorage.user.User;
 import unipi.cloudstorage.user.UserService;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,8 +26,8 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
+
+import static unipi.cloudstorage.folder.Folder.ROOT_FOLDER;
 
 
 @RestController
@@ -49,7 +44,9 @@ public class FolderController extends ResponseHandler {
     @CrossOrigin
     @GetMapping("folders" )
     public ResponseEntity<?> getFolders(
-        @RequestParam(required = false) Long folderId
+        @RequestParam(required = false) Long folderId,
+        @RequestParam(required = false) String searchQuery,
+        @RequestParam(required = false) Boolean onlyShared
     ) {
 
         // Get user from token
@@ -58,19 +55,47 @@ public class FolderController extends ResponseHandler {
             return createErrorResponse(HttpStatus.FORBIDDEN, "You are not logged in" );
         }
 
-        if(folderId == null){
+        boolean isFolderRoot = false;
+        if(folderId.equals(ROOT_FOLDER)){
+            isFolderRoot = true;
             folderId = folderService.getRootFolderOfUser(loggedInUser).getId();
         }
+        if(onlyShared == null){
+            onlyShared = false;
+        }
 
-        List<Folder> folderList = folderService.getChildFolders(loggedInUser.getId(), folderId);
+        List<Folder> folderList;
+        if(onlyShared){
+            if(searchQuery != null){
+                folderList = folderService.searchForSharedFolders(
+                    loggedInUser.getId(),
+                    isFolderRoot ? null : folderId,
+                    searchQuery
+                );
+                return createSuccessResponse(folderService.present(folderList,true));
+            }
 
+            folderList = folderService.getSharedFolders(
+                loggedInUser.getId(),
+                isFolderRoot ? null : folderId
+            );
+            return createSuccessResponse(folderService.present(folderList,true));
+        }
+
+        if(searchQuery != null) {
+            folderList = folderService.searchForSubfolders(loggedInUser.getId(), folderId, searchQuery);
+            return createSuccessResponse(folderService.present(folderList));
+        }
+
+        folderList = folderService.getSubfolders(loggedInUser.getId(), folderId);
         return createSuccessResponse(folderService.present(folderList));
+
     }
 
     @CrossOrigin
     @PostMapping("folder" )
     public ResponseEntity<?> createFolder(
-            @RequestBody FolderCreationRequest request
+        @RequestBody FolderCreationRequest request
     ) {
 
         // Get user from token
@@ -84,7 +109,7 @@ public class FolderController extends ResponseHandler {
 
         // Get parent folder
         Folder parentFolder;
-        if(parentFolderId == null){
+        if(parentFolderId.equals(ROOT_FOLDER)){
             parentFolder = folderService.getRootFolderOfUser(loggedInUser);
         }else{
             parentFolder = folderService.getFolderById(loggedInUser.getId(),parentFolderId);
@@ -92,7 +117,7 @@ public class FolderController extends ResponseHandler {
 
         // Create new folder
         Folder newFolder = new Folder();
-        newFolder.setParentFolder(parentFolder);
+        newFolder.setFolder(parentFolder);
         newFolder.setUser(loggedInUser);
         newFolder.setName(name);
         newFolder.setDateAdd(LocalDateTime.now());
@@ -179,12 +204,17 @@ public class FolderController extends ResponseHandler {
         // Search file by id
         Folder folder = null;
         try {
-            folder = folderService.getFolderById(loggedInUser.getId(), idFolder);
+            folder = folderService.getFolderById(idFolder);
             if (folder == null) {
                 throw new FolderNotFoundException("Folder not found");
             }
         } catch (FolderNotFoundException e) {
             return createErrorResponse(e.getMessage());
+        }
+
+        // Check access to the fodler
+        if(!folderService.checkAccess(loggedInUser,folder)){
+            return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to the folder");
         }
 
         // Delete folder
@@ -212,12 +242,17 @@ public class FolderController extends ResponseHandler {
         // Search file by id
         Folder folder = null;
         try {
-            folder = folderService.getFolderById(loggedInUser.getId(), idFolder);
+            folder = folderService.getFolderById(idFolder);
             if (folder == null) {
-                throw new FolderNotFoundException("Folder not found");
+                throw new FolderNotFoundException("");
             }
         } catch (FolderNotFoundException e) {
-            return createErrorResponse(e.getMessage());
+            return createErrorResponse("Folder not found");
+        }
+
+        // Check access to the fodler
+        if(!folderService.checkAccess(loggedInUser,folder)){
+            return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to the folder");
         }
 
         // Create zip
@@ -271,12 +306,17 @@ public class FolderController extends ResponseHandler {
         // Search file by id
         Folder folder = null;
         try {
-            folder = folderService.getFolderById(loggedInUser.getId(), idFolder);
+            folder = folderService.getFolderById(idFolder);
             if (folder == null) {
                 throw new FolderNotFoundException("Folder not found");
             }
         } catch (FolderNotFoundException e) {
             return createErrorResponse(e.getMessage());
+        }
+
+        // Check access to the fodler
+        if(!folderService.checkAccess(loggedInUser,folder)){
+            return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to the folder");
         }
 
         // Delete zip

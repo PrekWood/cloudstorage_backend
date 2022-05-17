@@ -1,4 +1,4 @@
-package unipi.cloudstorage.fileSharing;
+package unipi.cloudstorage.sharing;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import unipi.cloudstorage.file.UserFile;
 import unipi.cloudstorage.file.UserFileService;
 import unipi.cloudstorage.file.exceptions.UserFileNotFound;
-import unipi.cloudstorage.fileSharing.enums.ShareableType;
-import unipi.cloudstorage.fileSharing.requests.CreateShareableLinkRequest;
+import unipi.cloudstorage.sharing.enums.FilePrivileges;
+import unipi.cloudstorage.sharing.requests.CreateShareableLinkRequest;
 import unipi.cloudstorage.folder.Folder;
 import unipi.cloudstorage.folder.FolderService;
 import unipi.cloudstorage.folder.exceptions.FolderNotFoundException;
@@ -24,34 +24,40 @@ import unipi.cloudstorage.shared.ResponseHandler;
 import unipi.cloudstorage.shared.Validate;
 import unipi.cloudstorage.shared.security.FileEncoder;
 import unipi.cloudstorage.shared.security.jwt.JWTSecret;
+import unipi.cloudstorage.sharing.requests.ShareFileRequest;
 import unipi.cloudstorage.user.User;
 import unipi.cloudstorage.user.UserService;
+import unipi.cloudstorage.user.exceptions.UserNotFoundException;
+import unipi.cloudstorage.userWithPrivileges.UserWithPrivileges;
+import unipi.cloudstorage.userWithPrivileges.UserWithPrivilegesService;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 
-import static unipi.cloudstorage.fileSharing.enums.ShareableType.FILE;
-import static unipi.cloudstorage.fileSharing.enums.ShareableType.FOLDER;
+import static unipi.cloudstorage.sharing.enums.FilePrivileges.*;
+import static unipi.cloudstorage.sharing.enums.ShareableType.FILE;
+import static unipi.cloudstorage.sharing.enums.ShareableType.FOLDER;
 
 @RestController
 @AllArgsConstructor
 @RequestMapping(path = "api/" )
-public class FileSharingController extends ResponseHandler {
+public class SharingController extends ResponseHandler {
 
     private final UserService userService;
     private final FolderService folderService;
     private final UserFileService userFileService;
-    private final FileManager fileManager;
+    private final UserWithPrivilegesService userWithPrivilegesService;
     private final FileEncoder fileEncoder;
     public static final int TOKEN_TIME_TO_LIVE = 60 * 60 * 1000 * 24 * 14;
 
     @CrossOrigin
-    @PostMapping("share" )
+    @PostMapping("share/link" )
     public ResponseEntity<?> createShareableLink(
             @RequestBody CreateShareableLinkRequest request
     ) {
@@ -141,6 +147,107 @@ public class FileSharingController extends ResponseHandler {
         responseBody.put("accessToken", accessToken);
         return createSuccessResponse(responseBody);
     }
+
+    @CrossOrigin
+    @PostMapping("share/users" )
+    public ResponseEntity<?> shareFileWithUsers(
+            @RequestBody ShareFileRequest request
+    ){
+        // Get user from token
+        User loggedInUser = userService.loadUserFromJwt();
+        if (loggedInUser == null) {
+            return createErrorResponse(HttpStatus.FORBIDDEN, "You are not loged in" );
+        }
+
+        if(!request.getType().equals(FOLDER) && !request.getType().equals(FILE)){
+            return createErrorResponse("Invalid sharable type");
+        }
+
+        // Search for sharable
+        Sharable file = null;
+        Long idFile = request.getObjectId();
+
+        try{
+            if(request.getType().equals(FOLDER)){
+                file = folderService.getFolderById(idFile);
+            }else{
+                file = userFileService.getFileById(idFile);
+            }
+        } catch (UserFileNotFound | FolderNotFoundException userFileNotFound) {
+            return createErrorResponse("Invalid id");
+        }
+
+
+
+        List<UserWithPrivileges> sharedWithList = new ArrayList<>();
+        for (HashMap<String, Object> userToShareWith : request.getUsers()) {
+            /*
+            JS constants
+
+            const ONLY_DOWNLOAD = -1;
+            const DOWNLOAD_EDIT = -2;
+            const DOWNLOAD_DELETE = -3;
+            const ALL = -4;
+            */
+            FilePrivileges privileges;
+            System.out.println("privileges bef");
+
+            switch (String.valueOf(userToShareWith.get("privileges"))){
+                case "-1":
+                    privileges = ONLY_DOWNLOAD;
+                    break;
+                case "-2":
+                    privileges = DOWNLOAD_EDIT;
+                    break;
+                case "-3":
+                    privileges = DOWNLOAD_DELETE;
+                    break;
+                case "-4":
+                    privileges = ALL;
+                    break;
+                default:
+                    return createErrorResponse("Invalid privileges");
+            }
+
+
+            // Search file by id
+            Long idUser = ((Number) userToShareWith.get("id")).longValue();
+
+            User userToShareWithObj = null;
+            try {
+                userToShareWithObj = userService.getUserById(idUser);
+                if (userToShareWithObj == null) {
+                    throw new UserNotFoundException("User not found");
+                }
+            } catch (UserNotFoundException e) {
+                return createErrorResponse("Something went wrong please try again");
+            }
+
+            // Object creation
+            UserWithPrivileges sharedWith = new UserWithPrivileges();
+            sharedWith.setPrivileges(privileges);
+            sharedWith.setUser(userToShareWithObj);
+            sharedWith.setSharable(file);
+            userWithPrivilegesService.save(sharedWith);
+
+            sharedWithList.add(sharedWith);
+        }
+
+        // Update file
+        file.setSharedWith(sharedWithList);
+        try{
+            if(file instanceof UserFile){
+                userFileService.update((UserFile)file);
+            }else{
+                folderService.update((Folder)file);
+            }
+        } catch (UserFileNotFound | FolderNotFoundException userFileNotFound) {
+            return createErrorResponse("Something went wrong please try again");
+        }
+
+        return createSuccessResponse();
+    }
+
 
     @CrossOrigin
     @GetMapping("share" )

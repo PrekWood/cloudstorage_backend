@@ -10,7 +10,10 @@ import unipi.cloudstorage.folder.exceptions.FolderNotFoundException;
 import unipi.cloudstorage.folder.exceptions.FolderZipCouldNotBeCreated;
 import unipi.cloudstorage.shared.FileManager;
 import unipi.cloudstorage.shared.Validate;
+import unipi.cloudstorage.sharing.SharableService;
 import unipi.cloudstorage.user.User;
+import unipi.cloudstorage.userWithPrivileges.UserWithPrivileges;
+import unipi.cloudstorage.userWithPrivileges.UserWithPrivilegesService;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -23,6 +26,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.zip.ZipOutputStream;
 
+import static unipi.cloudstorage.sharing.enums.FilePrivileges.*;
+import static unipi.cloudstorage.sharing.enums.FilePrivileges.ALL;
+
 @AllArgsConstructor
 @Service
 public class FolderService {
@@ -30,6 +36,9 @@ public class FolderService {
     private final FolderPresenter presenter;
     private final UserFileService fileService;
     private final FileManager fileManager;
+    private final UserWithPrivilegesService userWithPrivilegesService;
+
+    private final SharableService sharableService;
 
 
     public void save(Folder f){
@@ -37,21 +46,27 @@ public class FolderService {
     }
 
     public Folder getRootFolderOfUser(User user){
-        return repository.findFirstByUserIdAndParentFolderIsNull(user.getId());
+        return repository.findFirstByUserIdAndFolderIsNull(user.getId());
     }
 
-    public List<Folder> getChildFolders(Long userId, Long parentFolderId){
-        return repository.findAllByUserIdAndParentFolderId(userId, parentFolderId);
+    public List<Folder> getSubfolders(Long userId, Long parentFolderId){
+        return repository.findAllByUserIdAndFolderId(userId, parentFolderId);
+    }
+    public List<Folder> getSubfolders(Long parentFolderId){
+        return repository.findAllByFolderId(parentFolderId);
+    }
+    public List<Folder> searchForSubfolders(Long userId, Long parentFolderId, String query){
+        return repository.searchForSubfolders(userId, parentFolderId, query);
     }
 
     public Folder getFolderById(Long userId, Long folderId){
         return repository.findFirstByUserIdAndId(userId, folderId);
     }
 
-    public Folder getFolderById(Long folderId){
+    public Folder getFolderById(Long folderId) throws FolderNotFoundException {
         Optional<Folder> folderFound = repository.findById(folderId);
         if(folderFound.isEmpty()){
-            return null;
+            throw new FolderNotFoundException("Invalid folder id");
         }
         return folderFound.get();
     }
@@ -64,7 +79,7 @@ public class FolderService {
         }
 
         existingFile.setName(folderToUpdate.getName());
-        existingFile.setParentFolder(folderToUpdate.getParentFolder());
+        existingFile.setFolder(folderToUpdate.getFolder());
         existingFile.setUser(folderToUpdate.getUser());
         save(existingFile);
     }
@@ -76,33 +91,48 @@ public class FolderService {
             HashMap<String, Object> breadcrumbItem = new HashMap<>();
             breadcrumbItem.put("name",currentFolder.getName());
             breadcrumbItem.put("id",currentFolder.getId());
-            currentFolder = currentFolder.getParentFolder();
+            currentFolder = currentFolder.getFolder();
             breadcrumb.add(breadcrumbItem);
         }
 
         return breadcrumb;
     }
 
-    public HashMap<String, Object> present(Folder f){
-        f.setBreadcrumb(this.getBreadcrumb(f));
-        return presenter.present(f);
+    public HashMap<String, Object> present(Folder folder, Boolean full){
+        folder.setBreadcrumb(this.getBreadcrumb(folder));
+        if(full){
+            folder = sharableService.loadSharedWith(folder);
+        }
+        return presenter.present(folder);
     }
-    public List<HashMap<String, Object>> present(List<Folder> folderList){
+    public HashMap<String, Object> present(Folder f){
+        return present(f, false);
+    }
+    public List<HashMap<String, Object>> present(List<Folder> folderList, Boolean full){
         for (Folder f : folderList) {
             f.setBreadcrumb(getBreadcrumb(f));
         }
+        if(full){
+            folderList = sharableService.loadSharedWithFolder(folderList);
+        }
         return presenter.presentMultiple(folderList);
+    }
+    public List<HashMap<String, Object>> present(List<Folder> folderList){
+        return present(folderList, false);
     }
 
     public void delete(User user, Folder folder) throws UserFileNotFound{
 
-        List<Folder> subFolderList = getChildFolders(user.getId(),folder.getId());
+        // Delete shared with
+        userWithPrivilegesService.deleteSharableSharedWithRecords(folder.getId());
+        for (UserWithPrivileges sharedWith : userWithPrivilegesService.findBySharableId(folder.getId())) {
+            userWithPrivilegesService.delete(sharedWith);
+        }
+
+        List<Folder> subFolderList = getSubfolders(folder.getId());
 
         // Delete folder's files
-        List<UserFile> filesList = fileService.getFiles(
-            user.getId(),
-            folder.getId()
-        );
+        List<UserFile> filesList = getFolderFiles(folder);
         for (UserFile file: filesList) {
             fileService.delete(file);
         }
@@ -126,7 +156,7 @@ public class FolderService {
         return folder;
     }
     public Folder fillSubFolders(Folder folder){
-        List<Folder> subfolderList = getChildFolders(
+        List<Folder> subfolderList = getSubfolders(
             folder.getUser().getId(),
             folder.getId()
         );
@@ -137,7 +167,7 @@ public class FolderService {
         return folder;
     }
     public Folder fillSubFolderFiles(Folder folder){
-        List<Folder> subfolderList = getChildFolders(
+        List<Folder> subfolderList = getSubfolders(
             folder.getUser().getId(),
             folder.getId()
         );
@@ -169,7 +199,7 @@ public class FolderService {
      * @param level Should be 0 on the first call
      */
     public void printFolders(Folder folder, int level){
-        List<Folder> subfolderList = getChildFolders(
+        List<Folder> subfolderList = getSubfolders(
             folder.getUser().getId(),
             folder.getId()
         );
@@ -194,7 +224,7 @@ public class FolderService {
                 fileName.append("  ");
             }
             fileName.append("  ");
-            fileName.append(file.getFileName());
+            fileName.append(file.getName());
             System.out.println(fileName.toString());
         }
 
@@ -224,7 +254,7 @@ public class FolderService {
         // Make a copy of the files
         for (UserFile file: folder.getFiles()) {
             Path fileLocation = Paths.get(fileService.getRealFilePath(file));
-            Path locationToBeCopied = Paths.get(tmpFolderPath+"/"+file.getFileName());
+            Path locationToBeCopied = Paths.get(tmpFolderPath+"/"+file.getName());
             Files.copy(fileLocation, locationToBeCopied, StandardCopyOption.REPLACE_EXISTING);
         }
 
@@ -281,5 +311,105 @@ public class FolderService {
         }
 
         return zipFilePath;
+    }
+
+
+    public List<Folder> getSharedFolders(Long idUser, Long idFolder){
+        if(idFolder == null){
+            return repository.getSharedFolders(idUser);
+        }
+        return repository.findAllByFolderId(idFolder);
+    }
+    public List<Folder> searchForSharedFolders(Long idUser, Long idFolder, String searchQuery){
+        if(idFolder == null){
+            return repository.searchForSharedFolders(idUser, searchQuery);
+        }
+        return repository.findAllByFolderId(idFolder);
+    }
+
+
+    public boolean checkAccess(User user, Folder folder, String action){
+        // Check if is the owner
+        boolean isUserTheOwner = folder.getUser().getId().equals(user.getId());
+        if(isUserTheOwner){
+            return true;
+        }
+
+        // Check if the file is shared with the user
+        boolean isSharedWithUser = false;
+        for (UserWithPrivileges userThatHasAccess : folder.getSharedWith()) {
+            if (!user.getId().equals(userThatHasAccess.getUser().getId())) {
+                continue;
+            }
+
+            // Check for privileges
+            if (Validate.isEmpty(action)){
+                isSharedWithUser = true;
+            }else if(action.equals("edit")){
+                if(
+                    userThatHasAccess.getPrivileges().equals(DOWNLOAD_EDIT) ||
+                    userThatHasAccess.getPrivileges().equals(ALL)
+                ){
+                    isSharedWithUser = true;
+                }
+            }else if(action.equals("delete")){
+                if(
+                    userThatHasAccess.getPrivileges().equals(DOWNLOAD_DELETE) ||
+                    userThatHasAccess.getPrivileges().equals(ALL)
+                ){
+                    isSharedWithUser = true;
+                }
+            }
+            break;
+        }
+        if(isSharedWithUser){
+            return true;
+        }
+
+        // Check if the file is located in a folder that is shared with the user
+        boolean isInsideAFolderThatIsSharedWithUser = false;
+        Folder rootFolder = getRootFolder(folder);
+        for (UserWithPrivileges userThatHasAccess:rootFolder.getSharedWith()) {
+
+            if (!user.getId().equals(userThatHasAccess.getUser().getId())) {
+                continue;
+            }
+
+            // Check for privileges
+            if (Validate.isEmpty(action)){
+                isInsideAFolderThatIsSharedWithUser = true;
+            }else if(action.equals("edit")){
+                if(
+                        userThatHasAccess.getPrivileges().equals(DOWNLOAD_EDIT) ||
+                                userThatHasAccess.getPrivileges().equals(ALL)
+                ){
+                    isInsideAFolderThatIsSharedWithUser = true;
+                }
+            }else if(action.equals("delete")){
+                if(
+                        userThatHasAccess.getPrivileges().equals(DOWNLOAD_DELETE) ||
+                                userThatHasAccess.getPrivileges().equals(ALL)
+                ){
+                    isInsideAFolderThatIsSharedWithUser = true;
+                }
+            }
+            break;
+        }
+        return isInsideAFolderThatIsSharedWithUser;
+    }
+    public boolean checkAccess(User user, Folder folder){
+        return checkAccess(user, folder, null);
+    }
+
+    public Folder getRootFolder(Folder folder){
+        Folder currentFolder = folder.getFolder();
+        while (currentFolder.getFolder().getFolder() != null){
+            currentFolder = currentFolder.getFolder();
+        }
+        return currentFolder;
+    }
+
+    public List<UserFile> getFolderFiles(Folder folder){
+        return fileService.getFiles(folder.getUser().getId(), folder.getId() );
     }
 }

@@ -1,10 +1,10 @@
-package unipi.cloudstorage.fileSharing.requests;
+package unipi.cloudstorage.sharing.requests;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import unipi.cloudstorage.fileSharing.enums.ShareableType;
+import unipi.cloudstorage.sharing.enums.ShareableType;
 
 @Getter
 @Setter

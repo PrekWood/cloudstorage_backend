@@ -34,6 +34,8 @@ public class User implements UserDetails {
     @JoinColumn(name = "country_code_id", referencedColumnName = "id")
     private CountryCode countryCode;
 
+    private String imagePath;
+
     public User(String email, String password, String phoneNumber, String firstName, String lastName, UserRole role, boolean isPhoneValidated) {
         this.email = email;
         this.password = password;

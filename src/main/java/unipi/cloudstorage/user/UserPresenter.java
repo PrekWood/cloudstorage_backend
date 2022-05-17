@@ -22,6 +22,7 @@ public class UserPresenter implements ModelPresenter<User> {
         response.setLastName(user.getLastName());
         response.setCountryCode(user.getCountryCode());
         response.setPhoneValidated(user.isPhoneValidated());
+        response.setImagePath(user.getImagePath());
         return response;
     }
 

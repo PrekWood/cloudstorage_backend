@@ -18,4 +18,5 @@ public class PresentedUserResponse {
     String lastName;
     CountryCode countryCode;
     boolean phoneValidated;
+    String imagePath;
 }

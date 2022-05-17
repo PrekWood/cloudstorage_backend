@@ -20,6 +20,7 @@ import unipi.cloudstorage.user.responses.PresentedUserResponse;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @AllArgsConstructor
@@ -64,6 +65,7 @@ public class UserService implements UserDetailsService {
         existingUser.setLastName(userToUpdate.getLastName());
         existingUser.setPhoneNumber(userToUpdate.getPhoneNumber());
         existingUser.setPhoneValidated(userToUpdate.isPhoneValidated());
+        existingUser.setImagePath(userToUpdate.getImagePath());
         userRepository.save(existingUser);
     }
 
@@ -78,6 +80,14 @@ public class UserService implements UserDetailsService {
 
     public PresentedUserResponse present(User user){
         return presenter.present(user);
+    }
+
+    public User getUserById(Long userId) throws UserNotFoundException {
+        Optional<User> user = userRepository.findById(userId);
+        if(user.isEmpty()){
+            throw new UserNotFoundException("Invalid user id");
+        }
+        return user.get();
     }
 
 
