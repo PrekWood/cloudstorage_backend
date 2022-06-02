@@ -227,6 +227,8 @@ public class UserFileController extends ResponseHandler {
             return createErrorResponse(HttpStatus.FORBIDDEN, "You don't have access to delete this file" );
         }
 
+
+
         // Try to delete file
         try {
             userFileService.delete(file);

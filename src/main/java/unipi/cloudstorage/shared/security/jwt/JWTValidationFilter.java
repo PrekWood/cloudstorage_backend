@@ -10,10 +10,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
-import unipi.cloudstorage.userToken.UserToken;
 import unipi.cloudstorage.userToken.UserTokenService;
-import unipi.cloudstorage.userToken.exceptions.UserTokenNotFound;
-import unipi.cloudstorage.userToken.exceptions.UserTokenNotValid;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -26,15 +23,13 @@ import java.util.HashMap;
 
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
-import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 
 @AllArgsConstructor
 public class JWTValidationFilter extends OncePerRequestFilter {
 
-    private final UserTokenService tokenService;
-
+    private final UserTokenService userTokenService;
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         if(
@@ -49,12 +44,6 @@ public class JWTValidationFilter extends OncePerRequestFilter {
 
                     String jwtToken = authorizationHeader.replace("Bearer ","");
                     String username = this.getUsernameFromJWT(jwtToken);
-
-                    // Check if token is valid
-                    UserToken token = tokenService.findById(jwtToken);
-                    if(!token.isValid()){
-                        throw new UserTokenNotValid("Token not valid");
-                    }
 
                     // All users have the same roles
                     Collection<SimpleGrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority("USER"));

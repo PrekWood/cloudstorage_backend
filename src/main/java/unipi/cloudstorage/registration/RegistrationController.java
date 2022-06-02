@@ -25,6 +25,7 @@ import unipi.cloudstorage.userToken.UserTokenService;
 import unipi.cloudstorage.userToken.exceptions.UserTokenNotFound;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 
 @RestController
@@ -36,7 +37,6 @@ public class RegistrationController extends ResponseHandler {
     private final CountryCodeService countryCodeService;
     private final OtpService otpService;
     private final UserTokenService userTokenService;
-
 
     @CrossOrigin
     @PostMapping("registration/otp" )
@@ -144,23 +144,41 @@ public class RegistrationController extends ResponseHandler {
 
         // Phone number validation
         if (otpCode.equals("" ) || otpCode.length() != 5) {
-            System.out.println("Invalid otpCode" );
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body((new HashMap<>()).put("error", "Invalid otpCode" ));
+            return createErrorResponse("Invalid PIN");
         }
 
         // Search for user
         User loggedInUser = userService.loadUserFromJwt();
         if (loggedInUser == null) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body((new HashMap<>()).put("error", "You are not loged in" ));
+            return createErrorResponse(HttpStatus.FORBIDDEN, "You are not loged in" );
         }
 
         // Get last otp and compare it with the user's
         Otp lastOtp = otpService.getLastOtpOfUser(loggedInUser);
         if (!lastOtp.getPinCode().equals(otpCode)) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body((new HashMap<>()).put("error", "Invalid PIN" ));
+            return createErrorResponse("Invalid PIN");
+        }
+
+        // Check if expired
+        LocalDateTime expirationDateTime = lastOtp.getDateAdd().plusMinutes(Otp.TIME_TO_LIVE);
+        if (LocalDateTime.now().isAfter(expirationDateTime)) {
+            // Generate new Otp
+            Otp resendOtp = new Otp();
+            resendOtp.setUser(loggedInUser);
+            otpService.save(resendOtp);
+
+            // Send sms
+            try {
+                SmsSender smsSender = new Twilio();
+                smsSender.sendSms(
+                        loggedInUser.getCountryCode().getCode(),
+                        loggedInUser.getPhoneNumber(),
+                        resendOtp.getPinCode()
+                );
+            } catch (IOException e) {
+                return createErrorResponse("SMS could not be sent");
+            }
+            return createErrorResponse("Your PIN expired. We just sent a new one");
         }
 
         // Set user as validated
@@ -168,8 +186,7 @@ public class RegistrationController extends ResponseHandler {
             loggedInUser.setPhoneValidated(true);
             userService.updateUser(loggedInUser);
         } catch (UserNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body((new HashMap<>()).put("error", "Error while updating the user" ));
+            return createErrorResponse("Error while updating the user");
         }
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body("" );

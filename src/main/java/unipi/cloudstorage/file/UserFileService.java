@@ -318,11 +318,15 @@ public class UserFileService{
 
     public boolean checkAccess(User user, UserFile file, String action){
 
+        //file = sharableService.loadSharedWith(file);
+
         // Check if is the owner
         boolean isUserTheOwner = file.getUser().getId().equals(user.getId());
         if(isUserTheOwner){
             return true;
         }
+        System.out.println("isUserTheOwner: "+isUserTheOwner);
+        System.out.println(file.getSharedWith().toString());
 
         // Check if the file is shared with the user
         boolean isSharedWithUser = false;
@@ -331,10 +335,14 @@ public class UserFileService{
                 continue;
             }
 
+            System.out.println("mphke");
+            System.out.println(action);
+
             // Check for privileges
             if (Validate.isEmpty(action)){
                 isSharedWithUser = true;
             }else if(action.equals("edit")){
+                System.out.println(userThatHasAccess.getPrivileges());
 
                 if(
                     userThatHasAccess.getPrivileges().equals(DOWNLOAD_EDIT) ||
@@ -352,11 +360,11 @@ public class UserFileService{
             }
             break;
         }
+        System.out.println("isSharedWithUser: "+isSharedWithUser);
+
         if(isSharedWithUser){
             return true;
         }
-        System.out.println("isSharedWithUser end");
-        System.out.println("isInsideAFolderThatIsSharedWithUser start");
 
         // Check if the file is located in a folder that is shared with the user
         boolean isInsideAFolderThatIsSharedWithUser = false;
@@ -387,7 +395,8 @@ public class UserFileService{
             }
             break;
         }
-        System.out.println("isInsideAFolderThatIsSharedWithUser end");
+        System.out.println("isInsideAFolderThatIsSharedWithUser: "+isInsideAFolderThatIsSharedWithUser);
+        System.out.println("rootFolder: "+rootFolder.getId());
 
         return isInsideAFolderThatIsSharedWithUser;
     }

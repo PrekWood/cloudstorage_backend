@@ -21,6 +21,9 @@ public class Otp {
     private String pinCode;
     private LocalDateTime dateAdd;
 
+
+    public static final int TIME_TO_LIVE = 5; // minutes
+
     public Otp(){
         this.dateAdd = LocalDateTime.now();
         this.pinCode = this.generatePinCode();
