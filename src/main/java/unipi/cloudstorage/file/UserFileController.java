@@ -47,7 +47,6 @@ public class UserFileController extends ResponseHandler {
             @RequestParam(required = false) Long folderId
     ) {
 
-        System.out.println("uploadFile");
 
         // Get user from token
         User loggedInUser = userService.loadUserFromJwt();
