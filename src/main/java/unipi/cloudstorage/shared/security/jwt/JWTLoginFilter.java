@@ -39,12 +39,17 @@ public class JWTLoginFilter extends UsernamePasswordAuthenticationFilter {
     }
 
     @Override
-    protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authResult) throws IOException, ServletException {
-        String username = request.getParameter("username");
-        String password = request.getParameter("password");
+    protected void successfulAuthentication(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain chain,
+            Authentication authResult
+    ) throws IOException, ServletException
+    {
+        // Get user object from Spring Security
+        User user = (User)authResult.getPrincipal();
 
         // Access token creation
-        User user = (User)authResult.getPrincipal();
         Algorithm algorithm = Algorithm.HMAC256(JWTSecret.getJWTSecret().getBytes());
         String access_token = JWT.create()
                 .withSubject(user.getUsername())
@@ -52,7 +57,7 @@ public class JWTLoginFilter extends UsernamePasswordAuthenticationFilter {
                 .withIssuer(request.getRequestURL().toString())
                 .sign(algorithm);
 
-        // Mark older user tokens as invalid
+        // Mark older tokens as invalid
         userTokenService.setUserTokensInvalid(user);
 
         // Add token to db
@@ -62,10 +67,11 @@ public class JWTLoginFilter extends UsernamePasswordAuthenticationFilter {
         token.setValid(true);
         userTokenService.save(token);
 
-        HashMap<String, String> tokenJson = new HashMap<>();
-        tokenJson.put("token",access_token);
+        // Format response
+        HashMap<String, String> responseBody = new HashMap<>();
+        responseBody.put("token",access_token);
         response.setContentType(APPLICATION_JSON_VALUE);
-        new ObjectMapper().writeValue(response.getOutputStream(), tokenJson);
+        new ObjectMapper().writeValue(response.getOutputStream(), responseBody);
     }
 
     @Override

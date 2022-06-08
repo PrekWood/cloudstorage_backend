@@ -4,14 +4,9 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 import unipi.cloudstorage.shared.FileManager;
 
-import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import java.io.IOException;
 import java.io.InputStream;
 import java.security.*;
-import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
@@ -22,7 +17,9 @@ public class FileEncoder {
 
     private final FileManager fileManager;
 
-    private final char[] password = "3=vyBL!YF9~#".toCharArray();
+//    private final char[] password = "3=vyBL!YF9~#".toCharArray();
+    private final char[] PASSWORD = "Szzu4@$sMbwnm24Vz#OpFwTXWeBlWoJ".toCharArray();
+//    private final char[] password = "PASSWORD".toCharArray();
 
     public byte[] generateDigitalSignature(byte[] fileBytes) {
 
@@ -51,55 +48,42 @@ public class FileEncoder {
             Cipher cipher = Cipher.getInstance("RSA");
             cipher.init(Cipher.ENCRYPT_MODE, this.getPrivateKey());
             digitalSignature = cipher.doFinal(hashedBytes);
-        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return digitalSignature;
     }
 
-    public byte[] decrypt(byte[] encryptedMessageHash) {
-        byte[] decryptedMessageHash = null;
+    public byte[] decrypt(byte[] digitalSignature) {
+        byte[] decryptedDigitalSignature;
         try {
             Cipher cipher = Cipher.getInstance("RSA");
             cipher.init(Cipher.DECRYPT_MODE, this.getPublicKey());
-            decryptedMessageHash = cipher.doFinal(encryptedMessageHash);
-        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
-            e.printStackTrace();
+            decryptedDigitalSignature = cipher.doFinal(digitalSignature);
+        } catch (Exception e) {
+            return null;
         }
-        return decryptedMessageHash;
+        return decryptedDigitalSignature;
     }
 
-    public PrivateKey getPrivateKey() {
-        PrivateKey privateKey = null;
-        try {
-            KeyStore keyStore = KeyStore.getInstance("PKCS12");
-            InputStream privateKeyFileStream = fileManager.getFileFromResourceAsStream(
-                    "static/certificates/sender_keystore.p12",
-                    this.getClass().getClassLoader()
-            );
-            keyStore.load(privateKeyFileStream, password);
-            privateKey = (PrivateKey) keyStore.getKey("senderKeyPair", password);
-        } catch (KeyStoreException | NoSuchAlgorithmException | UnrecoverableKeyException | IOException | CertificateException e) {
-            e.printStackTrace();
-        }
-        return privateKey;
+    public PrivateKey getPrivateKey() throws Exception{
+        KeyStore keyStore = KeyStore.getInstance("PKCS12");
+        InputStream privateKeyFileStream = fileManager.getFileFromResourceAsStream(
+                "static/certificates/privateKey.p12",
+                this.getClass().getClassLoader()
+        );
+        keyStore.load(privateKeyFileStream, PASSWORD);
+        return (PrivateKey) keyStore.getKey("senderKeyPair", PASSWORD);
     }
 
-    public PublicKey getPublicKey() {
-        PublicKey publicKey = null;
-        try {
-            InputStream publicKeyFileStream = fileManager.getFileFromResourceAsStream(
-                    "static/certificates/sender_certificate.cer",
-                    this.getClass().getClassLoader()
-            );
-            CertificateFactory f = CertificateFactory.getInstance("X.509");
-            X509Certificate certificate = (X509Certificate) f.generateCertificate(publicKeyFileStream);
-            publicKey = certificate.getPublicKey();
-        } catch (CertificateException e) {
-            System.out.println("catch");
-            e.printStackTrace();
-        }
-        return publicKey;
+    public PublicKey getPublicKey() throws Exception {
+        InputStream publicKeyFileStream = fileManager.getFileFromResourceAsStream(
+                "static/certificates/publicKey.cer",
+                this.getClass().getClassLoader()
+        );
+        CertificateFactory f = CertificateFactory.getInstance("X.509");
+        X509Certificate certificate = (X509Certificate) f.generateCertificate(publicKeyFileStream);
+        return certificate.getPublicKey();
     }
 
     public byte[] hash(byte[] fileBytes) {

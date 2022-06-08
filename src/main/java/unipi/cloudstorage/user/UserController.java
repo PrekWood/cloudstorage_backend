@@ -90,13 +90,13 @@ public class UserController extends ResponseHandler {
 
         // Create new object
         User newUser = new User(
-                request.getEmail(),
-                request.getPassword(),
-                null,
-                request.getFirstName(),
-                request.getLastName(),
-                UserRole.USER,
-                false
+            request.getEmail(),
+            request.getPassword(),
+            null,
+            request.getFirstName(),
+            request.getLastName(),
+            UserRole.USER,
+            false
         );
 
         // Try to sign in

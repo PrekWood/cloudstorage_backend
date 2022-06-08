@@ -19,7 +19,6 @@ public interface UserWithPrivilegesRepository extends JpaRepository<UserWithPriv
        DELETE
        FROM sharable_shared_with
        WHERE sharable_id = :idFile
-       -- AND shared_with_id = :idUserWithPrivileges
     """, nativeQuery = true)
     void deleteSharableSharedWithRecords(
         @Param("idFile") Long idFile

@@ -89,8 +89,6 @@ public class RegistrationController extends ResponseHandler {
         otpService.save(registerOtp);
 
         // Send sms
-        /*
-        TODO: Reopen SMS
         try {
             SmsSender smsSender = new Twilio();
             smsSender.sendSms(countryCode.getCode(), phoneNumber, registerOtp.getPinCode());
@@ -98,10 +96,9 @@ public class RegistrationController extends ResponseHandler {
             HashMap<String, String> responseBody = new HashMap<>();
             responseBody.put("error", "SMS Could not be sent" );
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseBody);
-        }*/
+        }
 
         return ResponseEntity.status(HttpStatus.OK).body(registerOtp.getPinCode());
-        //.body("" ); TODO: ΝΑ μην στελνει το pin code πισω
     }
 
     @PostMapping("registration/otp-resend" )

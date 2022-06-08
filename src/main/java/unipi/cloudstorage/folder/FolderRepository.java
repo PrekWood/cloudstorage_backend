@@ -15,11 +15,7 @@ public interface FolderRepository extends JpaRepository<Folder, Long> {
     List<Folder> findAllByUserIdAndFolderId(@Param("uid") Long uid, @Param("fid") Long fid);
     List<Folder> findAllByFolderId(@Param("fid") Long fid);
 
-    List<Folder> findAllByUserIdAndFolderIdAndFolderNameContains(
-            @Param("uid") Long uid,
-            @Param("fid") Long fid,
-            @Param("nameLike") String nameLike
-    );
+    Folder findFirstByUserIdAndId(@Param("uid") Long uid, @Param("fid") Long fid);
 
     @Query("""
         SELECT folder
@@ -34,12 +30,11 @@ public interface FolderRepository extends JpaRepository<Folder, Long> {
             @Param("nameLike") String nameLike
     );
 
-    Folder findFirstByUserIdAndId(@Param("uid") Long uid, @Param("fid") Long fid);
 
     @Query("""
         SELECT folder
         FROM Folder folder
-        JOIN folder.sharedWith sharedWith 
+        JOIN folder.sharedWith sharedWith
         WHERE sharedWith.user.id = :uid
     """)
     List<Folder> getSharedFolders(@Param("uid") Long idUser);

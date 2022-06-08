@@ -14,6 +14,7 @@ import unipi.cloudstorage.file.UserFile;
 import unipi.cloudstorage.file.UserFileService;
 import unipi.cloudstorage.file.exceptions.UserFileNotFound;
 import unipi.cloudstorage.sharing.enums.FilePrivileges;
+import unipi.cloudstorage.sharing.enums.ShareableType;
 import unipi.cloudstorage.sharing.requests.CreateShareableLinkRequest;
 import unipi.cloudstorage.folder.Folder;
 import unipi.cloudstorage.folder.FolderService;
@@ -67,13 +68,14 @@ public class SharingController extends ResponseHandler {
             return createErrorResponse(HttpStatus.FORBIDDEN, "You are not loged in" );
         }
 
-        if(!request.getType().equals(FOLDER) && !request.getType().equals(FILE)){
+        ShareableType shareableType = request.getType();
+        if(!shareableType.equals(FOLDER) && !shareableType.equals(FILE)){
             return createErrorResponse("Wrong sharable type");
         }
 
         String tokenBodyJsonString;
-        if(request.getType().equals(FOLDER)){
-            // Search file by id
+        if(shareableType.equals(FOLDER)){
+            // Search folder by id
             Long idFolder = request.getObjectId();
             Folder folder = null;
             try {
@@ -125,7 +127,7 @@ public class SharingController extends ResponseHandler {
             // Access token creation
             HashMap<String, Object> tokenBody = new HashMap<>();
             tokenBody.put("type","file");
-            tokenBody.put("idObject",file.getId());
+            tokenBody.put("idObject",idFile);
             try {
                 tokenBodyJsonString = new ObjectMapper().writeValueAsString(tokenBody);
             } catch (JsonProcessingException e) {
@@ -252,7 +254,7 @@ public class SharingController extends ResponseHandler {
     @CrossOrigin
     @GetMapping("share" )
     public ResponseEntity<?> downloadFileByLink(
-            @RequestParam String accessToken
+        @RequestParam String accessToken
     ) {
 
         if(Validate.isEmpty(accessToken)){

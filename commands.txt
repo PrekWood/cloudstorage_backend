@@ -1,0 +1,10 @@
+
+DIGITAL SIGNATURE
+
+// Private RSA Key
+keytool -genkeypair -alias senderKeyPair -keyalg RSA -keysize 2048 -dname "CN=CloudStorage" -validity 365 -storetype PKCS12 -keystore privateKey.p12 -storepass <PASSWORD>
+
+// Public PKS12 Certificate
+keytool -exportcert -alias senderKeyPair -storetype PKCS12 -keystore privateKey.p12 -file publicKey.cer -rfc -storepass <PASSWORD>
+
+

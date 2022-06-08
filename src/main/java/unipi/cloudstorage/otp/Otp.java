@@ -22,7 +22,9 @@ public class Otp {
     private LocalDateTime dateAdd;
 
 
+
     public static final int TIME_TO_LIVE = 5; // minutes
+    public static final int OTP_LENGTH = 5;
 
     public Otp(){
         this.dateAdd = LocalDateTime.now();
@@ -32,7 +34,7 @@ public class Otp {
     public String generatePinCode(){
         Random randomNumberGenerator = new Random();
         StringBuilder pinCodeBuilder = new StringBuilder();
-        for(int randomNumberIndex=0; randomNumberIndex < 5; randomNumberIndex++){
+        for(int randomNumberIndex=0; randomNumberIndex < OTP_LENGTH; randomNumberIndex++){
             pinCodeBuilder.append(randomNumberGenerator.nextInt(10));
         }
         return pinCodeBuilder.toString();

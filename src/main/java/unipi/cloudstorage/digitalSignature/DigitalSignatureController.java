@@ -31,7 +31,6 @@ public class DigitalSignatureController extends ResponseHandler {
         String fileBytesString = request.getFile();
         String digitalSignature = request.getDigitalSignature();
         if (Validate.isEmpty(fileBytesString) || Validate.isEmpty(digitalSignature)) {
-
             return createErrorResponse("Please fill in all fields" );
         }
 
@@ -54,7 +53,6 @@ public class DigitalSignatureController extends ResponseHandler {
         if (!fileEncoder.validateDigitalSignature(fileBytes, digitalSignatureBytes)) {
             return createErrorResponse("Invalid digital signature" );
         }
-
 
         HashMap<String, Object> responseBody = new HashMap<>();
         responseBody.put("fileBytes", fileBytes);

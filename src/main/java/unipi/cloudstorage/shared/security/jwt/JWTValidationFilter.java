@@ -10,7 +10,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+import unipi.cloudstorage.userToken.UserToken;
 import unipi.cloudstorage.userToken.UserTokenService;
+import unipi.cloudstorage.userToken.exceptions.UserTokenNotValidException;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -45,29 +47,38 @@ public class JWTValidationFilter extends OncePerRequestFilter {
                     String jwtToken = authorizationHeader.replace("Bearer ","");
                     String username = this.getUsernameFromJWT(jwtToken);
 
+                    // Check if token is valid
+                    UserToken token = userTokenService.findById(jwtToken);
+                    if(!token.isValid()){
+                        throw new UserTokenNotValidException("The token has expired");
+                    }
+
                     // All users have the same roles
-                    Collection<SimpleGrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority("USER"));
+                    Collection<SimpleGrantedAuthority> authorities = Collections.singletonList(
+                            new SimpleGrantedAuthority("USER")
+                    );
 
                     // Create authentication token and allow users inside spring
-                    UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(username, null, authorities);
+                    UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
+                            username, null, authorities
+                    );
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
 
                     filterChain.doFilter(request, response);
 
                 }catch(Exception exception){
-                    System.out.println("Authentication error: "+exception.getMessage());
 
+                    // Authorization error
                     response.setStatus(FORBIDDEN.value());
                     response.setHeader("error", exception.getMessage());
                     response.setContentType(APPLICATION_JSON_VALUE);
 
+                    // Format response
                     HashMap<String, String> errorMessage = new HashMap<>();
                     errorMessage.put("error",exception.getMessage());
                     new ObjectMapper().writeValue(response.getOutputStream(),errorMessage);
                 }
             }else{
-                System.out.println("no token");
-
                 filterChain.doFilter(request, response);
             }
         }

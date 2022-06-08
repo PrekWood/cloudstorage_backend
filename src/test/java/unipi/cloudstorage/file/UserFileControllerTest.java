@@ -11,6 +11,7 @@ import unipi.cloudstorage.shared.CloudStorageTest;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -643,5 +644,6 @@ class UserFileControllerTest extends CloudStorageTest {
         assertEquals(String.valueOf(((LinkedHashMap) filesList.get(1)).get("name")), "<keywordToSearch>1.txt");
     }
 
-
 }
+
+

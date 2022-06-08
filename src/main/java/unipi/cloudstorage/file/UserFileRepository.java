@@ -40,11 +40,6 @@ public interface UserFileRepository extends JpaRepository<UserFile, Long> {
             @Param("s") Sort s
     );
 
-    List<UserFile> findAllByUserIdAndFavoriteIsTrue(
-            @Param("uid") Long uid,
-            @Param("s") Sort s
-    );
-
     List<UserFile> findAllByUserIdAndNameContains(
             @Param("uid") Long uid,
             @Param("s") String search,
@@ -76,8 +71,8 @@ public interface UserFileRepository extends JpaRepository<UserFile, Long> {
 
     @Query("""
         SELECT file
-        FROM UserFile file 
-        JOIN file.sharedWith sharedWith 
+        FROM UserFile file
+        JOIN file.sharedWith sharedWith
         WHERE sharedWith.user.id = :uid
     """)
     List<UserFile> searchForSharedFiles(
@@ -100,12 +95,12 @@ public interface UserFileRepository extends JpaRepository<UserFile, Long> {
         FROM UserFile file
         JOIN file.sharedWith sharedWith
         WHERE sharedWith.user.id = :uid
-        AND file.name LIKE  %:searchQuery%
+        AND file.name LIKE %:searchQuery%
     """)
     List<UserFile> searchForSharedFiles(
-            @Param("uid") Long uid,
-            @Param("searchQuery") String searchQuery,
-            @Param("s") Sort sort
+        @Param("uid") Long uid,
+        @Param("searchQuery") String searchQuery,
+        @Param("s") Sort sort
     );
 
     @Query(value = """

@@ -152,7 +152,7 @@ public class UserFileController extends ResponseHandler {
         // Read file bytes
         String filePathString = fileManager.getUserFilesPath() + file.getFilePath();
         Path filePath = Paths.get(filePathString);
-        byte[] fileBytes = new byte[0];
+        byte[] fileBytes;
         try {
             fileBytes = Files.readAllBytes(filePath);
         } catch (IOException e) {
